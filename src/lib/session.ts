@@ -47,8 +47,27 @@ export async function requireUser() {
   return { user: session.user, session: session.session, roles };
 }
 
+// Where a user belongs after login: tutors run the admin dashboard, everyone
+// else (clients, students, and the not-yet-linked) lives in the portal. The
+// portal renders a friendly empty state for a user with no roles, so it's a
+// safe catch-all that never bounces back into a redirect loop.
+export function homePath(roles: Role[]): string {
+  return roles.includes("tutor") ? "/dashboard" : "/portal";
+}
+
 export async function requireRole(role: Role) {
   const current = await requireUser();
-  if (!current.roles.includes(role)) redirect("/dashboard");
+  if (!current.roles.includes(role)) redirect(homePath(current.roles));
+  return current;
+}
+
+// Gate for the client/student portal. Any logged-in non-tutor is welcome
+// (including unlinked accounts, which see an empty state). A pure tutor is
+// sent to their own dashboard; a tutor who is also a client/student may stay.
+export async function requirePortalUser() {
+  const current = await requireUser();
+  const isPortalUser =
+    current.roles.includes("client") || current.roles.includes("student");
+  if (current.roles.includes("tutor") && !isPortalUser) redirect("/dashboard");
   return current;
 }

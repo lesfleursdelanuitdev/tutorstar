@@ -8,15 +8,20 @@ export default function proxy(request: NextRequest) {
   const isLoggedIn = getSessionCookie(request) !== null;
   const { pathname } = request.nextUrl;
 
-  if (!isLoggedIn && pathname.startsWith("/dashboard")) {
+  if (
+    !isLoggedIn &&
+    (pathname.startsWith("/dashboard") || pathname.startsWith("/portal"))
+  ) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
   if (isLoggedIn && pathname === "/login") {
+    // Cookie-only here — the actual role split (dashboard vs portal) happens
+    // server-side: /dashboard bounces non-tutors to /portal via requireRole.
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/login"],
+  matcher: ["/dashboard/:path*", "/portal/:path*", "/login"],
 };

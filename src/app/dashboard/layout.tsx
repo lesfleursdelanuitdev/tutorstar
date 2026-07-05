@@ -1,12 +1,14 @@
 import Link from "next/link";
 import { GraduationCap } from "lucide-react";
-import { requireUser } from "@/lib/session";
+import { requireRole } from "@/lib/session";
 import { SignOutButton } from "./sign-out-button";
 
 export default async function DashboardLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  const { user } = await requireUser();
+  // Tutor-only surface. Non-tutors (clients/students) are redirected to the
+  // portal by requireRole, so the dashboard never leaks business data to them.
+  const { user } = await requireRole("tutor");
 
   return (
     <div className="min-h-screen flex flex-col bg-base-200">

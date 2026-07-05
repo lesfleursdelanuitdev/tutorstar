@@ -17,10 +17,10 @@ import {
   students,
   subjects,
 } from "@/db/schema";
-import { requireUser } from "@/lib/session";
+import { requireRole } from "@/lib/session";
 
 export default async function DashboardPage() {
-  const { user, roles } = await requireUser();
+  const { user } = await requireRole("tutor");
   const startOfToday = new Date();
   startOfToday.setHours(0, 0, 0, 0);
   const [
@@ -46,17 +46,6 @@ export default async function DashboardPage() {
     <>
       <div>
         <h1 className="text-2xl font-bold">Welcome, {user.name}</h1>
-        <div className="flex gap-2 mt-2">
-          {roles.length === 0 ? (
-            <span className="badge badge-ghost">no roles assigned yet</span>
-          ) : (
-            roles.map((role) => (
-              <span key={role} className="badge badge-primary badge-outline">
-                {role}
-              </span>
-            ))
-          )}
-        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
