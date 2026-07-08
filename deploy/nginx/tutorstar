@@ -1,0 +1,36 @@
+# TutorStar reverse proxy — install to /etc/nginx/sites-available/tutorstar and
+# symlink into sites-enabled. This is the HTTP-only starting point; run
+#   sudo certbot --nginx -d tutor.lesfleursdelanuit.com
+# and certbot rewrites this into the :443 TLS server + an 80->443 redirect
+# (same as the gonsalves-public / lesfleursdelanuit vhosts).
+#
+# `zone=login` is defined globally in /etc/nginx/conf.d/ratelimit.conf.
+server {
+    listen 80;
+    listen [::]:80;
+    server_name tutor.lesfleursdelanuit.com;
+
+    client_max_body_size 25m;   # attachments upload path
+
+    # Throttle better-auth email sign-in against credential stuffing.
+    location /api/auth/sign-in {
+        limit_req zone=login burst=3 nodelay;
+        proxy_pass http://127.0.0.1:3041;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location / {
+        proxy_pass http://127.0.0.1:3041;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+}

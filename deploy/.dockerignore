@@ -1,0 +1,15 @@
+# Build-context excludes. node_modules and .next-* are rebuilt in-image; .env and
+# .git must never enter layers (the real .env is mounted as an ephemeral secret).
+node_modules
+.next-*
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+npm-debug.log*
+Dockerfile
+deploy
+drizzle/meta
+*.tsbuildinfo
+.DS_Store

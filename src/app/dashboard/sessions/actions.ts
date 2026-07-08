@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { and, eq, ne } from "drizzle-orm";
 import { db } from "@/db";
 import { PG_FOREIGN_KEY_VIOLATION, pgErrorCode } from "@/db/errors";
-import { packages, sessions } from "@/db/schema";
+import { packages, sessionNotes, sessions } from "@/db/schema";
 import { formString, isUuid } from "@/lib/forms";
 import {
   defaultBillable,
@@ -50,6 +50,72 @@ export async function setSessionStatusAction(
       updatedAt: new Date(),
     })
     .where(eq(sessions.id, sessionId));
+
+  revalidate(redirectTo);
+  redirect(redirectTo);
+}
+
+// ---------------------------------------------------------------------------
+// Session notes
+//
+// A session carries any number of notes, each private (tutor-only) or shared
+// (surfaced to the student's clients/students in the portal). Same
+// bound-`redirectTo` shape as the controls above.
+// ---------------------------------------------------------------------------
+
+// Only "shared" opts a note into portal visibility; anything else is private.
+function noteVisibility(formData: FormData) {
+  return formString(formData, "visibility") === "shared" ? "shared" : "private";
+}
+
+export async function createNoteAction(
+  redirectTo: string,
+  formData: FormData,
+) {
+  await requireRole("tutor");
+  const sessionId = formString(formData, "sessionId");
+  if (!isUuid(sessionId)) redirect(redirectTo);
+  const body = formString(formData, "body");
+  if (!body) failTo(redirectTo, "Note can't be empty.");
+
+  await db.insert(sessionNotes).values({
+    sessionId,
+    body,
+    visibility: noteVisibility(formData),
+  });
+
+  revalidate(redirectTo);
+  redirect(redirectTo);
+}
+
+export async function updateNoteAction(
+  redirectTo: string,
+  formData: FormData,
+) {
+  await requireRole("tutor");
+  const noteId = formString(formData, "noteId");
+  if (!isUuid(noteId)) redirect(redirectTo);
+  const body = formString(formData, "body");
+  if (!body) failTo(redirectTo, "Note can't be empty.");
+
+  await db
+    .update(sessionNotes)
+    .set({ body, visibility: noteVisibility(formData), updatedAt: new Date() })
+    .where(eq(sessionNotes.id, noteId));
+
+  revalidate(redirectTo);
+  redirect(redirectTo);
+}
+
+export async function deleteNoteAction(
+  redirectTo: string,
+  formData: FormData,
+) {
+  await requireRole("tutor");
+  const noteId = formString(formData, "noteId");
+  if (!isUuid(noteId)) redirect(redirectTo);
+
+  await db.delete(sessionNotes).where(eq(sessionNotes.id, noteId));
 
   revalidate(redirectTo);
   redirect(redirectTo);

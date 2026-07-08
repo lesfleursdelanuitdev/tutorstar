@@ -14,9 +14,14 @@ export function SignOutButton() {
   }
 
   return (
-    <button onClick={handleSignOut} className="btn btn-ghost btn-sm gap-2">
+    <button
+      type="button"
+      onClick={handleSignOut}
+      className="btn btn-ghost btn-sm btn-circle"
+      aria-label="Sign out"
+      title="Sign out"
+    >
       <LogOut className="size-4" />
-      Sign out
     </button>
   );
 }

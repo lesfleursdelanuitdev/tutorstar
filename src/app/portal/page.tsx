@@ -1,4 +1,4 @@
-import { CalendarClock, Package, Receipt } from "lucide-react";
+import { CalendarClock, Package, Receipt, StickyNote } from "lucide-react";
 import { and, asc, desc, eq, gte, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import {
@@ -6,6 +6,7 @@ import {
   engagements,
   invoices,
   packages,
+  sessionNotes,
   sessions,
   students,
   subjects,
@@ -56,7 +57,7 @@ export default async function PortalPage() {
 
   const now = new Date();
 
-  const [upcoming, pkgRows, invoiceRows] = await Promise.all([
+  const [upcoming, sharedNotes, pkgRows, invoiceRows] = await Promise.all([
     // Upcoming schedule: still-scheduled sessions for visible students.
     studentIds.length
       ? db
@@ -80,6 +81,30 @@ export default async function PortalPage() {
             ),
           )
           .orderBy(asc(sessions.scheduledAt))
+          .limit(20)
+      : [],
+    // Shared lesson notes: private notes never match, so they never leak.
+    studentIds.length
+      ? db
+          .select({
+            id: sessionNotes.id,
+            body: sessionNotes.body,
+            scheduledAt: sessions.scheduledAt,
+            studentName: students.name,
+            subjectName: subjects.name,
+          })
+          .from(sessionNotes)
+          .innerJoin(sessions, eq(sessionNotes.sessionId, sessions.id))
+          .innerJoin(engagements, eq(sessions.engagementId, engagements.id))
+          .innerJoin(students, eq(engagements.studentId, students.id))
+          .innerJoin(subjects, eq(engagements.subjectId, subjects.id))
+          .where(
+            and(
+              eq(sessionNotes.visibility, "shared"),
+              inArray(engagements.studentId, studentIds),
+            ),
+          )
+          .orderBy(desc(sessions.scheduledAt))
           .limit(20)
       : [],
     // Prepaid package balances (derived, never stored).
@@ -177,6 +202,35 @@ export default async function PortalPage() {
                 ))}
               </ul>
             )}
+          </div>
+        </section>
+      )}
+
+      {/* Shared lesson notes */}
+      {studentIds.length > 0 && sharedNotes.length > 0 && (
+        <section className="card bg-base-100 shadow-sm">
+          <div className="card-body gap-4">
+            <h2 className="card-title text-lg gap-2">
+              <StickyNote className="size-5 text-primary" />
+              Lesson notes
+            </h2>
+            <ul className="flex flex-col divide-y divide-base-200">
+              {sharedNotes.map((note) => (
+                <li
+                  key={note.id}
+                  className="flex flex-col gap-1 py-3 first:pt-0 last:pb-0"
+                >
+                  <div className="text-sm text-base-content/70">
+                    {note.subjectName}
+                    {studentIds.length > 1 && (
+                      <span> · {note.studentName}</span>
+                    )}{" "}
+                    · {formatDateTime(note.scheduledAt)}
+                  </div>
+                  <p className="whitespace-pre-wrap">{note.body}</p>
+                </li>
+              ))}
+            </ul>
           </div>
         </section>
       )}

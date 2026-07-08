@@ -3,11 +3,13 @@
 import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { GraduationCap } from "lucide-react";
 import { resetPassword } from "@/lib/auth-client";
+import { AxolotlMark } from "@/components/axolotl-mark";
 
-// Better Auth's default minimum; mirrored here for a friendly client-side check.
 const MIN_PASSWORD_LENGTH = 8;
+
+const CARD =
+  "w-full rounded-[24px] bg-base-100 px-8 py-8 shadow-[0_20px_60px_-30px_rgba(22,52,58,0.4)] sm:px-10";
 
 function ResetPasswordForm() {
   const params = useSearchParams();
@@ -22,33 +24,41 @@ function ResetPasswordForm() {
 
   if (done) {
     return (
-      <div className="card bg-base-100 shadow-md">
-        <div className="card-body">
-          <h1 className="card-title">Password updated</h1>
-          <p className="text-sm text-base-content/70">
+      <div className={CARD}>
+        <div className="flex flex-col items-center gap-4 text-center">
+          <AxolotlMark size={72} title="Axel the axolotl" />
+          <h1 className="font-display text-2xl font-extrabold">
+            Password updated
+          </h1>
+          <p className="text-sm text-[color:var(--axo-muted)]">
             Your password has been reset. You can now sign in with it.
           </p>
-          <Link href="/login" className="btn btn-primary btn-sm mt-2">
-            Go to sign in
+          <Link
+            href="/login"
+            className="btn btn-primary btn-chunky chunky-aqua mt-1 font-extrabold"
+          >
+            Go to sign in →
           </Link>
         </div>
       </div>
     );
   }
 
-  // Better Auth redirects here with ?error=INVALID_TOKEN when a link is bad or
-  // expired, and with ?token=... when it's valid.
   if (!token || error) {
     return (
-      <div className="card bg-base-100 shadow-md">
-        <div className="card-body">
-          <h1 className="card-title">Link expired</h1>
-          <p className="text-sm text-base-content/70">
+      <div className={CARD}>
+        <div className="flex flex-col items-center gap-4 text-center">
+          <AxolotlMark size={72} title="Axel the axolotl" />
+          <h1 className="font-display text-2xl font-extrabold">Link expired</h1>
+          <p className="text-sm text-[color:var(--axo-muted)]">
             This password reset link is invalid or has expired. Request a new
             one to try again.
           </p>
-          <Link href="/forgot-password" className="btn btn-primary btn-sm mt-2">
-            Request a new link
+          <Link
+            href="/forgot-password"
+            className="btn btn-primary btn-chunky chunky-aqua mt-1 font-extrabold"
+          >
+            Request a new link →
           </Link>
         </div>
       </div>
@@ -59,7 +69,9 @@ function ResetPasswordForm() {
     e.preventDefault();
     setFormError(null);
     if (password.length < MIN_PASSWORD_LENGTH) {
-      setFormError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters.`);
+      setFormError(
+        `Password must be at least ${MIN_PASSWORD_LENGTH} characters.`,
+      );
       return;
     }
     if (password !== confirm) {
@@ -72,7 +84,9 @@ function ResetPasswordForm() {
       token: token!,
     });
     if (resetError) {
-      setFormError(resetError.message ?? "Couldn't reset your password. Try again.");
+      setFormError(
+        resetError.message ?? "Couldn't reset your password. Try again.",
+      );
       setLoading(false);
       return;
     }
@@ -80,46 +94,56 @@ function ResetPasswordForm() {
   }
 
   return (
-    <div className="card bg-base-100 shadow-md">
-      <div className="card-body">
-        <h1 className="card-title">Choose a new password</h1>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-          <label className="form-control w-full">
-            <span className="label-text mb-1">New password</span>
+    <div className={CARD}>
+      <div className="flex flex-col items-center gap-4 text-center">
+        <AxolotlMark size={72} title="Axel the axolotl" />
+        <h1 className="font-display text-2xl font-extrabold">
+          Choose a new password
+        </h1>
+        <form
+          onSubmit={handleSubmit}
+          className="mt-1 flex w-full flex-col gap-3 text-left"
+        >
+          <label className="flex flex-col gap-1.5">
+            <span className="text-[13px] font-bold text-[color:var(--axo-muted)]">
+              New password
+            </span>
             <input
               type="password"
               required
               autoComplete="new-password"
-              className="input input-bordered w-full"
+              className="input input-bordered w-full focus:border-primary focus:outline-none"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
           </label>
-          <label className="form-control w-full">
-            <span className="label-text mb-1">Confirm password</span>
+          <label className="flex flex-col gap-1.5">
+            <span className="text-[13px] font-bold text-[color:var(--axo-muted)]">
+              Confirm password
+            </span>
             <input
               type="password"
               required
               autoComplete="new-password"
-              className="input input-bordered w-full"
+              className="input input-bordered w-full focus:border-primary focus:outline-none"
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
             />
           </label>
 
           {formError && (
-            <div role="alert" className="alert alert-error text-sm py-2">
+            <div role="alert" className="alert alert-error py-2 text-sm">
               {formError}
             </div>
           )}
 
           <button
             type="submit"
-            className="btn btn-primary w-full mt-2"
+            className="btn btn-primary btn-chunky chunky-aqua mt-1 w-full font-extrabold"
             disabled={loading}
           >
             {loading && <span className="loading loading-spinner loading-sm" />}
-            Set new password
+            Set new password →
           </button>
         </form>
       </div>
@@ -129,25 +153,19 @@ function ResetPasswordForm() {
 
 export default function ResetPasswordPage() {
   return (
-    <div className="min-h-screen flex flex-col bg-base-200">
-      <div className="flex-1 flex items-center justify-center px-4">
-        <div className="w-full max-w-sm flex flex-col gap-6">
-          <Link href="/" className="flex items-center justify-center gap-2">
-            <GraduationCap className="size-7 text-primary" />
-            <span className="text-2xl font-bold">TutorStar</span>
-          </Link>
-          <Suspense
-            fallback={
-              <div className="card bg-base-100 shadow-md">
-                <div className="card-body items-center">
-                  <span className="loading loading-spinner" />
-                </div>
+    <div className="flex min-h-screen flex-col items-center justify-center bg-base-200 px-4">
+      <div className="w-full max-w-[420px]">
+        <Suspense
+          fallback={
+            <div className={CARD}>
+              <div className="flex justify-center py-8">
+                <span className="loading loading-spinner loading-lg text-primary" />
               </div>
-            }
-          >
-            <ResetPasswordForm />
-          </Suspense>
-        </div>
+            </div>
+          }
+        >
+          <ResetPasswordForm />
+        </Suspense>
       </div>
     </div>
   );

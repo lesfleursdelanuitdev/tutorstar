@@ -6,6 +6,7 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { PG_UNIQUE_VIOLATION, pgErrorCode } from "@/db/errors";
 import { invoiceLineItems, invoices, payments } from "@/db/schema";
+import { invoiceEmail, sendEmail } from "@/lib/email";
 import { formString, isUuid } from "@/lib/forms";
 import { formCents } from "@/lib/money";
 import { packageLabel } from "@/lib/billing";
@@ -186,8 +187,12 @@ export async function sendInvoiceAction(invoiceId: string, formData: FormData) {
   await requireRole("tutor");
   const invoice = await db.query.invoices.findFirst({
     where: eq(invoices.id, invoiceId),
-    columns: { status: true },
-    with: { lineItems: { columns: { id: true } } },
+    columns: { status: true, number: true },
+    with: {
+      client: { columns: { name: true, email: true } },
+      lineItems: { columns: { description: true, amountCents: true } },
+      payments: { columns: { amountCents: true } },
+    },
   });
   if (!invoice) redirect("/dashboard/invoices");
   if (invoice.status !== "draft") {
@@ -196,11 +201,42 @@ export async function sendInvoiceAction(invoiceId: string, formData: FormData) {
   if (invoice.lineItems.length === 0) {
     failDetail(invoiceId, "Add at least one line item before sending.");
   }
+  if (!invoice.client.email) {
+    failDetail(
+      invoiceId,
+      "Add an email address to this client before sending the invoice.",
+    );
+  }
 
+  const total = invoice.lineItems.reduce((sum, li) => sum + li.amountCents, 0);
+  const paid = invoice.payments.reduce((sum, p) => sum + p.amountCents, 0);
+  const balance = Math.max(total - paid, 0);
   const today = new Date().toISOString().slice(0, 10);
+  const dueOn = formString(formData, "dueOn");
+
+  // Email before flipping status: a delivery failure leaves the invoice as a
+  // draft the tutor can retry, rather than a "sent" invoice nobody received.
+  try {
+    await sendEmail({
+      ...invoiceEmail({
+        number: invoice.number,
+        clientName: invoice.client.name,
+        lineItems: invoice.lineItems,
+        totalCents: total,
+        paidCents: paid,
+        balanceCents: balance,
+        issuedOn: today,
+        dueOn,
+      }),
+      to: invoice.client.email,
+    });
+  } catch {
+    failDetail(invoiceId, "Couldn't send the invoice email. Try again.");
+  }
+
   await db
     .update(invoices)
-    .set({ status: "sent", issuedOn: today, dueOn: formString(formData, "dueOn") })
+    .set({ status: "sent", issuedOn: today, dueOn })
     .where(eq(invoices.id, invoiceId));
 
   revalidatePath("/dashboard/invoices");

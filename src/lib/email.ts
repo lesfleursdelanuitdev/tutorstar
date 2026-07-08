@@ -6,6 +6,8 @@
 // no email provider configured. Switching providers (e.g. SMTP) is a change to
 // `sendEmail` alone — callers keep the same interface.
 
+import { formatCents } from "./money";
+
 const FROM = process.env.EMAIL_FROM ?? "TutorStar <onboarding@resend.dev>";
 
 export type OutboundEmail = {
@@ -56,24 +58,24 @@ export async function sendEmail(email: OutboundEmail): Promise<void> {
 export function emailLayout(heading: string, bodyHtml: string): string {
   return `<!doctype html>
 <html>
-  <body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;padding:32px 0;">
+  <body style="margin:0;padding:0;background:#efeae1;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#efeae1;padding:32px 0;">
       <tr>
         <td align="center">
-          <table role="presentation" width="480" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
+          <table role="presentation" width="480" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e6e1d7;">
             <tr>
-              <td style="padding:24px 32px;border-bottom:1px solid #f3f4f6;">
-                <span style="font-size:18px;font-weight:700;color:#111827;">TutorStar</span>
+              <td style="padding:24px 32px;border-bottom:1px solid #efeae1;">
+                <span style="font-size:18px;font-weight:700;color:#2b2b28;">TutorStar</span>
               </td>
             </tr>
             <tr>
-              <td style="padding:32px;color:#374151;font-size:15px;line-height:1.6;">
-                <h1 style="margin:0 0 16px;font-size:20px;color:#111827;">${heading}</h1>
+              <td style="padding:32px;color:#45443f;font-size:15px;line-height:1.6;">
+                <h1 style="margin:0 0 16px;font-size:20px;color:#2b2b28;">${heading}</h1>
                 ${bodyHtml}
               </td>
             </tr>
             <tr>
-              <td style="padding:20px 32px;border-top:1px solid #f3f4f6;color:#9ca3af;font-size:12px;">
+              <td style="padding:20px 32px;border-top:1px solid #efeae1;color:#9ca3af;font-size:12px;">
                 TutorStar — tutoring, organised.
               </td>
             </tr>
@@ -86,7 +88,7 @@ export function emailLayout(heading: string, bodyHtml: string): string {
 }
 
 export function emailButton(href: string, label: string): string {
-  return `<a href="${href}" style="display:inline-block;background:#4f46e5;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:8px;font-weight:600;font-size:15px;">${label}</a>`;
+  return `<a href="${href}" style="display:inline-block;background:#3f8f7d;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:8px;font-weight:600;font-size:15px;">${label}</a>`;
 }
 
 // Password-reset message. `url` is the ready-to-use reset link Better Auth
@@ -104,4 +106,79 @@ export function resetPasswordEmail(name: string, url: string): OutboundEmail {
     html,
     text: `Hi ${name}, reset your TutorStar password using this link (expires in 1 hour): ${url}\n\nIf you didn't request this, ignore this email.`,
   };
+}
+
+// A self-contained invoice: the whole bill (line items + totals) lives in the
+// email body, so the client needs no login or link to read it.
+export function invoiceEmail(params: {
+  number: number;
+  clientName: string;
+  lineItems: { description: string; amountCents: number }[];
+  totalCents: number;
+  paidCents: number;
+  balanceCents: number;
+  issuedOn: string | null;
+  dueOn: string | null;
+}): OutboundEmail {
+  const rowStyle =
+    'style="padding:8px 0;border-bottom:1px solid #efeae1;font-size:14px;"';
+  const lineRows = params.lineItems
+    .map(
+      (li) =>
+        `<tr>
+           <td ${rowStyle}>${escapeHtml(li.description)}</td>
+           <td ${rowStyle} align="right" style="padding:8px 0;border-bottom:1px solid #efeae1;font-size:14px;white-space:nowrap;">${formatCents(li.amountCents)}</td>
+         </tr>`,
+    )
+    .join("");
+
+  const totalRow = (label: string, value: string, bold = false) =>
+    `<tr>
+       <td align="right" style="padding:6px 0;font-size:14px;${bold ? "font-weight:700;color:#2b2b28;" : "color:#6b7280;"}">${label}</td>
+       <td align="right" style="padding:6px 0 6px 24px;font-size:14px;white-space:nowrap;${bold ? "font-weight:700;color:#2b2b28;" : "color:#45443f;"}">${value}</td>
+     </tr>`;
+
+  const html = emailLayout(
+    `Invoice #${params.number}`,
+    `<p style="margin:0 0 20px;">Hi ${escapeHtml(params.clientName)}, here is your invoice from TutorStar.</p>
+     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 20px;border-collapse:collapse;">
+       ${lineRows}
+     </table>
+     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+       ${totalRow("Total", formatCents(params.totalCents))}
+       ${params.paidCents > 0 ? totalRow("Paid", `-${formatCents(params.paidCents)}`) : ""}
+       ${totalRow("Amount due", formatCents(params.balanceCents), true)}
+     </table>
+     ${params.dueOn ? `<p style="margin:20px 0 0;color:#6b7280;font-size:13px;">Due by ${params.dueOn}.</p>` : ""}`,
+  );
+
+  const textLines = [
+    `Invoice #${params.number} from TutorStar`,
+    "",
+    ...params.lineItems.map(
+      (li) => `${li.description}  —  ${formatCents(li.amountCents)}`,
+    ),
+    "",
+    `Total: ${formatCents(params.totalCents)}`,
+    ...(params.paidCents > 0 ? [`Paid: -${formatCents(params.paidCents)}`] : []),
+    `Amount due: ${formatCents(params.balanceCents)}`,
+    ...(params.dueOn ? ["", `Due by ${params.dueOn}.`] : []),
+  ];
+
+  return {
+    to: "", // filled by caller
+    subject: `Invoice #${params.number} from TutorStar`,
+    html,
+    text: textLines.join("\n"),
+  };
+}
+
+// Line-item descriptions are user-authored, so escape before interpolating
+// into the email HTML.
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }

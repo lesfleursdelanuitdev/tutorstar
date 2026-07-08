@@ -1,0 +1,34 @@
+# TutorStar — Next.js app, rootless Quadlet for svc-tutorstar.
+# Mirrors the gonsalves networking: slirp4netns + 10.0.2.2 for host Postgres
+# (Postgres binds 127.0.0.1 only, so the container reaches it via host loopback).
+[Unit]
+Description=TutorStar (Next.js, container)
+Documentation=file:///srv/apps/tutorstar/deploy/README.md
+After=network-online.target
+Wants=network-online.target
+
+[Container]
+Image=localhost/tutorstar:prod
+ContainerName=tutorstar
+Network=slirp4netns:allow_host_loopback=true
+PublishPort=127.0.0.1:3041:3041
+Environment=NODE_ENV=production
+Environment=PORT=3041
+Environment=HOSTNAME=0.0.0.0
+Environment=BETTER_AUTH_URL=https://tutor.lesfleursdelanuit.com
+# EMAIL_FROM has spaces — must be quoted for systemd.
+Environment="EMAIL_FROM=TutorStar <onboarding@resend.dev>"
+# Secrets are podman secrets (register with deploy/quadlet/register-secrets.sh).
+# DATABASE_URL points at 10.0.2.2:5432 (host Postgres via slirp), db+role=tutorstar.
+Secret=tutorstar-db-url,type=env,target=DATABASE_URL
+Secret=tutorstar-auth-secret,type=env,target=BETTER_AUTH_SECRET
+# Resend is optional — without a key, better-auth logs emails to the journal instead
+# of sending. If you don't use Resend, remove this line AND skip its secret.
+Secret=tutorstar-resend-key,type=env,target=RESEND_API_KEY
+
+[Service]
+Restart=always
+TimeoutStartSec=300
+
+[Install]
+WantedBy=default.target
