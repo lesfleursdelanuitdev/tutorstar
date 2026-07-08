@@ -15,6 +15,10 @@ PublishPort=127.0.0.1:3041:3041
 Environment=NODE_ENV=production
 Environment=PORT=3041
 Environment=HOSTNAME=0.0.0.0
+# Host runs UTC (for log correlation), but scheduling builds occurrences from
+# process-local wall time — pin to the tutor's zone so "16:00" means 16:00 PT.
+# See src/lib/scheduling.ts (generateOccurrences). Single-tutor shortcut.
+Environment=TZ=America/Los_Angeles
 Environment=BETTER_AUTH_URL=https://tutor.lesfleursdelanuit.com
 # EMAIL_FROM has spaces — must be quoted for systemd.
 Environment="EMAIL_FROM=TutorStar <onboarding@resend.dev>"

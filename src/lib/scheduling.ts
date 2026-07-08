@@ -74,6 +74,13 @@ export type OccurrenceSlot = {
 // step never skips or repeats a day), but each occurrence's instant is built
 // from local Y-M-D + wall-clock time — matching how a manual datetime-local
 // booking is parsed. Both paths therefore land on the same wall time.
+//
+// IMPORTANT: "local"/"wall time" here means the *process* timezone, which is
+// pinned to America/Los_Angeles via TZ (Quadlet unit Environment=TZ + the dev
+// script), NOT the host clock. The VPS itself runs UTC for log correlation, so
+// without that TZ pin a "16:00" slot would materialize at 16:00 UTC (~8am PT).
+// This is a deliberate single-tutor shortcut in place of a per-tutor timezone
+// column — do not "simplify" it away by removing the TZ env.
 export function generateOccurrences(
   slot: OccurrenceSlot,
   from: string,
