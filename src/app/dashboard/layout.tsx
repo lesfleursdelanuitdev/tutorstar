@@ -3,7 +3,9 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { invoices } from "@/db/schema";
 import { requireRole } from "@/lib/session";
+import { AxolotlMark } from "@/components/axolotl-mark";
 import { DashboardSidebar } from "@/components/dashboard-sidebar";
+import { DashboardMobileMenu } from "@/components/dashboard-mobile-menu";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SignOutButton } from "./sign-out-button";
 
@@ -21,21 +23,24 @@ export default async function DashboardLayout({
     .from(invoices)
     .where(eq(invoices.status, "draft"));
 
+  const draftInvoiceCount = draftRows.length;
+
   return (
     <div className="flex min-h-screen bg-base-200">
       <DashboardSidebar
-        draftInvoiceCount={draftRows.length}
+        draftInvoiceCount={draftInvoiceCount}
         className="fixed inset-y-0 left-0 z-30 hidden lg:flex"
       />
 
       <div className="flex min-w-0 flex-1 flex-col lg:ml-[230px]">
         <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-[color:var(--axo-border)] bg-base-200/90 px-4 py-3 backdrop-blur sm:px-6 lg:px-8">
-          <div className="flex items-center gap-2 lg:hidden">
-            <Link href="/dashboard" className="font-display text-lg font-extrabold">
-              TutorStar
+          <div className="flex items-center gap-2">
+            <DashboardMobileMenu draftInvoiceCount={draftInvoiceCount} />
+            <Link href="/dashboard" className="flex items-center gap-2 lg:hidden">
+              <AxolotlMark size={32} gills={false} title="TutorStar" />
+              <span className="font-display text-lg font-extrabold">TutorStar</span>
             </Link>
           </div>
-          <div className="hidden lg:block" aria-hidden />
           <div className="flex items-center gap-2">
             <ThemeToggle />
             <Link
@@ -54,26 +59,6 @@ export default async function DashboardLayout({
             <SignOutButton />
           </div>
         </header>
-
-        {/* Compact mobile nav */}
-        <nav className="flex gap-2 overflow-x-auto border-b border-[color:var(--axo-border)] px-4 py-2 lg:hidden">
-          {[
-            ["Dashboard", "/dashboard"],
-            ["Clients", "/dashboard/clients"],
-            ["Students", "/dashboard/students"],
-            ["Schedule", "/dashboard/sessions"],
-            ["Invoices", "/dashboard/invoices"],
-            ["Settings", "/dashboard/settings"],
-          ].map(([label, href]) => (
-            <Link
-              key={href}
-              href={href}
-              className="shrink-0 rounded-full px-3 py-1.5 text-xs font-bold text-[color:var(--axo-muted)] hover:bg-base-100 hover:text-primary"
-            >
-              {label}
-            </Link>
-          ))}
-        </nav>
 
         <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 p-4 sm:p-6 lg:p-8">
           {children}

@@ -8,7 +8,12 @@ import {
   PG_FOREIGN_KEY_VIOLATION,
   pgErrorCode,
 } from "@/db/errors";
-import { engagements, recurringSchedules, sessions } from "@/db/schema";
+import {
+  engagements,
+  engagementSubjects,
+  recurringSchedules,
+  sessions,
+} from "@/db/schema";
 import { formString, isUuid } from "@/lib/forms";
 import { formCents } from "@/lib/money";
 import { generateOccurrences, todayIso } from "@/lib/scheduling";
@@ -26,6 +31,14 @@ function newFail(message: string): never {
   redirect(`/dashboard/engagements/new?error=${encodeURIComponent(message)}`);
 }
 
+// The checked subject checkboxes, deduped; null when any value is malformed.
+function formSubjectIds(formData: FormData): string[] | null {
+  const ids = Array.from(
+    new Set(formData.getAll("subjectIds").map((v) => String(v))),
+  );
+  return ids.every(isUuid) ? ids : null;
+}
+
 // Redirect back to an engagement's detail page with an error banner. A module
 // function (not an inline arrow) so its `never` return narrows guarded values.
 function failTo(here: string, message: string): never {
@@ -35,10 +48,12 @@ function failTo(here: string, message: string): never {
 export async function createEngagementAction(formData: FormData) {
   await requireRole("tutor");
   const studentId = formString(formData, "studentId");
-  const subjectId = formString(formData, "subjectId");
+  const subjectIds = formSubjectIds(formData);
   const clientId = formString(formData, "clientId");
   if (!isUuid(studentId)) newFail("Select a student.");
-  if (!isUuid(subjectId)) newFail("Select a subject.");
+  if (subjectIds === null || subjectIds.length === 0) {
+    newFail("Select at least one subject.");
+  }
   if (!isUuid(clientId)) newFail("Select a paying client.");
 
   const hourlyRateCents = formCents(formData, "hourlyRate");
@@ -46,19 +61,52 @@ export async function createEngagementAction(formData: FormData) {
 
   const startedOn = formString(formData, "startedOn");
 
-  const [row] = await db
-    .insert(engagements)
-    .values({
-      studentId,
-      subjectId,
-      clientId,
-      hourlyRateCents,
-      ...(startedOn ? { startedOn } : {}),
-    })
-    .returning({ id: engagements.id });
+  const row = await db.transaction(async (tx) => {
+    const [created] = await tx
+      .insert(engagements)
+      .values({
+        studentId,
+        clientId,
+        hourlyRateCents,
+        ...(startedOn ? { startedOn } : {}),
+      })
+      .returning({ id: engagements.id });
+    await tx.insert(engagementSubjects).values(
+      subjectIds.map((subjectId) => ({ engagementId: created.id, subjectId })),
+    );
+    return created;
+  });
 
   revalidatePath("/dashboard/engagements");
   redirect(`/dashboard/engagements/${row.id}`);
+}
+
+// Replace the engagement's subject set (at least one — an engagement without
+// a subject is meaningless).
+export async function updateEngagementSubjectsAction(
+  engagementId: string,
+  formData: FormData,
+) {
+  await requireRole("tutor");
+  const here = `/dashboard/engagements/${engagementId}`;
+
+  const subjectIds = formSubjectIds(formData);
+  if (subjectIds === null || subjectIds.length === 0) {
+    failTo(here, "Select at least one subject.");
+  }
+
+  await db.transaction(async (tx) => {
+    await tx
+      .delete(engagementSubjects)
+      .where(eq(engagementSubjects.engagementId, engagementId));
+    await tx.insert(engagementSubjects).values(
+      subjectIds.map((subjectId) => ({ engagementId, subjectId })),
+    );
+  });
+
+  revalidatePath("/dashboard/engagements");
+  revalidatePath(here);
+  redirect(`${here}?saved=1`);
 }
 
 export async function updateEngagementAction(

@@ -58,7 +58,7 @@ async function buildLineItems(
       .map((s) => ({
         invoiceId,
         sessionId: s.id,
-        description: `${s.studentName} · ${s.subjectName} — ${formatDateTime(
+        description: `${s.studentName} · ${s.subjectNames} — ${formatDateTime(
           s.scheduledAt,
         )} (${s.durationMinutes} min)`,
         amountCents: s.amountCents,

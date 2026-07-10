@@ -7,6 +7,7 @@ import {
   packages,
   recurringSchedules,
   sessions,
+  subjects,
 } from "@/db/schema";
 import { packageLabel, formatQuantity } from "@/lib/billing";
 import { isUuid } from "@/lib/forms";
@@ -18,6 +19,7 @@ import {
   WEEKDAYS,
 } from "@/lib/scheduling";
 import { requireRole } from "@/lib/session";
+import { subjectNames } from "@/lib/subjects";
 import { Flash } from "../../flash";
 import { CoverSelect } from "../../sessions/cover-select";
 import { SessionControls } from "../../sessions/session-controls";
@@ -31,6 +33,7 @@ import {
   reactivateEngagementAction,
   setScheduleActiveAction,
   updateEngagementAction,
+  updateEngagementSubjectsAction,
 } from "../actions";
 
 const modeLabel = (mode: string) => (mode === "online" ? "online" : "in person");
@@ -49,11 +52,16 @@ export default async function EngagementDetailPage({
 
   const engagement = await db.query.engagements.findFirst({
     where: eq(engagements.id, id),
-    with: { student: true, subject: true, client: true },
+    with: {
+      student: true,
+      client: true,
+      engagementSubjects: { with: { subject: true } },
+    },
   });
   if (!engagement) notFound();
 
-  const [schedules, sessionRows, studentPackages] = await Promise.all([
+  const [allSubjects, schedules, sessionRows, studentPackages] = await Promise.all([
+    db.query.subjects.findMany({ orderBy: [asc(subjects.name)] }),
     db.query.recurringSchedules.findMany({
       where: eq(recurringSchedules.engagementId, id),
       orderBy: [asc(recurringSchedules.weekday), asc(recurringSchedules.startTime)],
@@ -85,8 +93,17 @@ export default async function EngagementDetailPage({
     };
   });
 
+  const engagementSubjectNames = subjectNames(engagement.engagementSubjects);
+  const currentSubjectIds = new Set(
+    engagement.engagementSubjects.map((es) => es.subjectId),
+  );
+
   const here = `/dashboard/engagements/${engagement.id}`;
   const updateAction = updateEngagementAction.bind(null, engagement.id);
+  const updateSubjectsAction = updateEngagementSubjectsAction.bind(
+    null,
+    engagement.id,
+  );
   const endAction = endEngagementAction.bind(null, engagement.id);
   const reactivateAction = reactivateEngagementAction.bind(null, engagement.id);
   const addSessionAction = createSessionAction.bind(null, engagement.id);
@@ -111,13 +128,13 @@ export default async function EngagementDetailPage({
             <Link href="/dashboard/engagements">Engagements</Link>
           </li>
           <li>
-            {engagement.student.name} · {engagement.subject.name}
+            {engagement.student.name} · {engagementSubjectNames}
           </li>
         </ul>
       </div>
       <div className="flex items-center gap-3">
         <h1 className="text-2xl font-bold">
-          {engagement.student.name} · {engagement.subject.name}
+          {engagement.student.name} · {engagementSubjectNames}
         </h1>
         <span
           className={`badge ${
@@ -145,8 +162,12 @@ export default async function EngagementDetailPage({
                   {engagement.student.name}
                 </Link>
               </dd>
-              <dt className="text-base-content/60">Subject</dt>
-              <dd className="col-span-2">{engagement.subject.name}</dd>
+              <dt className="text-base-content/60">
+                {engagement.engagementSubjects.length === 1
+                  ? "Subject"
+                  : "Subjects"}
+              </dt>
+              <dd className="col-span-2">{engagementSubjectNames}</dd>
               <dt className="text-base-content/60">Client</dt>
               <dd className="col-span-2">
                 <Link
@@ -188,6 +209,33 @@ export default async function EngagementDetailPage({
               the rate only affects sessions created afterwards — each session
               keeps the rate it was booked at.
             </p>
+
+            <form
+              action={updateSubjectsAction}
+              className="flex flex-col gap-2 pt-3 mt-1 border-t border-base-200"
+            >
+              <span className="label-text">Subjects (one or more)</span>
+              <div className="flex max-h-40 flex-col gap-1 overflow-y-auto rounded-lg border border-base-300 p-3">
+                {allSubjects.map((s) => (
+                  <label
+                    key={s.id}
+                    className="flex cursor-pointer items-center gap-2"
+                  >
+                    <input
+                      type="checkbox"
+                      name="subjectIds"
+                      value={s.id}
+                      defaultChecked={currentSubjectIds.has(s.id)}
+                      className="checkbox checkbox-sm"
+                    />
+                    <span>{s.name}</span>
+                  </label>
+                ))}
+              </div>
+              <button type="submit" className="btn btn-outline btn-sm self-start">
+                Save subjects
+              </button>
+            </form>
           </div>
         </div>
 

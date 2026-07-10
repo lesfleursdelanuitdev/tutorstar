@@ -50,6 +50,11 @@ export const invoiceStatusEnum = pgEnum("invoice_status", [
   "void",
 ]);
 
+// "completed" is deliberately absent: a goal is complete iff all of its steps
+// are (derived, like package balances and roles — never stored). Abandonment
+// is a fact about intent, not derivable, so it is stored.
+export const goalStatusEnum = pgEnum("goal_status", ["active", "abandoned"]);
+
 // ---------------------------------------------------------------------------
 // Identity
 //
@@ -195,8 +200,10 @@ export const subjects = pgTable("subjects", {
   name: text().notNull().unique(),
 });
 
-// The hub of the model: student + subject + paying client + current rate.
+// The hub of the model: student + subjects + paying client + current rate.
 // Sessions belong to an engagement. The tutor is implied (single-tutor app).
+// Subjects live in engagement_subjects (at least one, app-enforced); the rate
+// covers all of them — different rates mean separate engagements.
 export const engagements = pgTable(
   "engagements",
   {
@@ -204,9 +211,6 @@ export const engagements = pgTable(
     studentId: uuid()
       .notNull()
       .references(() => students.id),
-    subjectId: uuid()
-      .notNull()
-      .references(() => subjects.id),
     clientId: uuid()
       .notNull()
       .references(() => clients.id),
@@ -219,6 +223,22 @@ export const engagements = pgTable(
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index().on(t.studentId), index().on(t.clientId)],
+);
+
+// Sessions deliberately carry no subject of their own: the tutor's sessions
+// mix subjects freely, so anywhere a session is shown or billed it carries the
+// engagement's full subject list instead.
+export const engagementSubjects = pgTable(
+  "engagement_subjects",
+  {
+    engagementId: uuid()
+      .notNull()
+      .references(() => engagements.id),
+    subjectId: uuid()
+      .notNull()
+      .references(() => subjects.id),
+  },
+  (t) => [primaryKey({ columns: [t.engagementId, t.subjectId] })],
 );
 
 // A weekly slot ("Tuesdays 16:00 for 60min") that session rows are generated
@@ -416,6 +436,155 @@ export const auditLog = pgTable("audit_log", {
 });
 
 // ---------------------------------------------------------------------------
+// Progress tracking
+//
+// Principle: progress belongs to the student; commerce belongs to the
+// engagement. Goals and assessment series are student-scoped (nullable
+// subject) so they survive engagement gaps. The engagement a piece of work
+// happened under is always recoverable via the session:
+//   goalSteps.completedInSessionId -> sessions -> engagements
+// Portal visibility is authorized through clients_students, per the existing
+// comment on that table.
+// ---------------------------------------------------------------------------
+
+// Every goal has >= 1 step (app-enforced; the UI collapses the step layer for
+// single-step goals). One completion pathway in the schema, two presentations
+// in the UI. noteVisibilityEnum is reused: Private is the default everywhere;
+// sharing with the portal is an explicit act.
+export const goals = pgTable(
+  "goals",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    studentId: uuid()
+      .notNull()
+      .references(() => students.id),
+    // Null = cross-cutting ("improve study habits", general diagnostics).
+    subjectId: uuid().references(() => subjects.id),
+    title: text().notNull(),
+    description: text(),
+    targetDate: date(),
+    status: goalStatusEnum().notNull().default("active"),
+    visibility: noteVisibilityEnum().notNull().default("private"),
+    // Roadmap ordering within (student, subject). The portal's grouped,
+    // ordered render of shared goals *is* the lesson plan, presentationally.
+    // A lessonPlans container table is deferred until naming / concurrent
+    // plans / templating are actually needed (add goals.planId then).
+    orderIndex: integer().notNull().default(0),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index().on(t.studentId)],
+);
+
+export const goalSteps = pgTable(
+  "goal_steps",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    goalId: uuid()
+      .notNull()
+      .references(() => goals.id),
+    title: text().notNull(),
+    orderIndex: integer().notNull().default(0),
+    // Set when the tutor marks the step done. completedInSessionId is the
+    // attribution: it powers "progress made this session" on the session
+    // detail view and the parent-facing recap. Null session with a set
+    // completedAt is allowed (retroactive / outside-session completion).
+    completedAt: timestamp({ withTimezone: true }),
+    completedInSessionId: uuid().references(() => sessions.id),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index().on(t.goalId),
+    index().on(t.completedInSessionId),
+    // A session attribution without a completion timestamp is nonsense.
+    check(
+      "step_session_implies_completed",
+      sql`${t.completedInSessionId} IS NULL OR ${t.completedAt} IS NOT NULL`,
+    ),
+  ],
+);
+
+// Scores are only comparable within a series (same instrument over time);
+// charts never cross series. One-off diagnostics are single-point series and
+// simply don't chart. Visibility lives on the series, not per assessment:
+// one switch controls whether the whole trend line is portal-visible, so
+// there is no ambiguous "effective visibility" to compute. Per-row tutor
+// `notes` are never rendered in the portal regardless (app-enforced).
+export const assessmentSeries = pgTable(
+  "assessment_series",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    studentId: uuid()
+      .notNull()
+      .references(() => students.id),
+    subjectId: uuid().references(() => subjects.id),
+    name: text().notNull(),
+    description: text(),
+    visibility: noteVisibilityEnum().notNull().default("private"),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index().on(t.studentId)],
+);
+
+export const assessments = pgTable(
+  "assessments",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    seriesId: uuid()
+      .notNull()
+      .references(() => assessmentSeries.id),
+    // Null = take-home / administered outside a session.
+    sessionId: uuid().references(() => sessions.id),
+    takenOn: date().notNull(),
+    // Raw + max stored, percent derived at render (same instinct as derived
+    // package balances). numeric because half-points exist. rawScore may
+    // exceed maxScore (extra credit) — deliberately unchecked.
+    rawScore: numeric({ precision: 6, scale: 2 }).notNull(),
+    maxScore: numeric({ precision: 6, scale: 2 }).notNull(),
+    // Tutor-only annotations; never portal-rendered.
+    notes: text(),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index().on(t.seriesId),
+    index().on(t.sessionId),
+    check(
+      "assessment_scores_sane",
+      sql`${t.rawScore} >= 0 AND ${t.maxScore} > 0`,
+    ),
+  ],
+);
+
+// A frozen, composed snapshot: "what the tutor said on March 3rd." Content is
+// generated from shared goals/steps/assessments in the period plus the
+// tutor's summary, then never regenerated — a goal reopened or a score
+// corrected later does not rewrite a sent report (immutable by convention;
+// no UPDATE path in the app). Recipients are resolved from clients_students
+// at send time; delivery goes through the existing Resend wiring.
+export const progressReports = pgTable(
+  "progress_reports",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    studentId: uuid()
+      .notNull()
+      .references(() => students.id),
+    periodStart: date().notNull(),
+    periodEnd: date().notNull(),
+    // Tutor's free-text framing for the period.
+    summary: text().notNull(),
+    // The frozen render inputs: shared goal/step deltas and assessment points
+    // as of generation time. Shape owned by the report generator.
+    content: jsonb().notNull(),
+    sentAt: timestamp({ withTimezone: true }),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index().on(t.studentId),
+    check("report_period_ordered", sql`${t.periodStart} <= ${t.periodEnd}`),
+  ],
+);
+
+// ---------------------------------------------------------------------------
 // Relations (for the db.query relational API)
 // ---------------------------------------------------------------------------
 
@@ -445,6 +614,9 @@ export const studentsRelations = relations(students, ({ one, many }) => ({
   clientsStudents: many(clientsStudents),
   engagements: many(engagements),
   packages: many(packages),
+  goals: many(goals),
+  assessmentSeries: many(assessmentSeries),
+  progressReports: many(progressReports),
 }));
 
 export const usersClientsRelations = relations(usersClients, ({ one }) => ({
@@ -470,8 +642,10 @@ export const clientsStudentsRelations = relations(
 );
 
 export const subjectsRelations = relations(subjects, ({ many }) => ({
-  engagements: many(engagements),
+  engagementSubjects: many(engagementSubjects),
   packageTemplates: many(packageTemplates),
+  goals: many(goals),
+  assessmentSeries: many(assessmentSeries),
 }));
 
 export const packageTemplatesRelations = relations(
@@ -490,18 +664,29 @@ export const engagementsRelations = relations(engagements, ({ one, many }) => ({
     fields: [engagements.studentId],
     references: [students.id],
   }),
-  subject: one(subjects, {
-    fields: [engagements.subjectId],
-    references: [subjects.id],
-  }),
   client: one(clients, {
     fields: [engagements.clientId],
     references: [clients.id],
   }),
+  engagementSubjects: many(engagementSubjects),
   recurringSchedules: many(recurringSchedules),
   sessions: many(sessions),
   attachments: many(attachments),
 }));
+
+export const engagementSubjectsRelations = relations(
+  engagementSubjects,
+  ({ one }) => ({
+    engagement: one(engagements, {
+      fields: [engagementSubjects.engagementId],
+      references: [engagements.id],
+    }),
+    subject: one(subjects, {
+      fields: [engagementSubjects.subjectId],
+      references: [subjects.id],
+    }),
+  }),
+);
 
 export const recurringSchedulesRelations = relations(
   recurringSchedules,
@@ -533,6 +718,8 @@ export const sessionsRelations = relations(sessions, ({ one, many }) => ({
     fields: [sessions.id],
     references: [invoiceLineItems.sessionId],
   }),
+  stepsCompleted: many(goalSteps),
+  assessments: many(assessments),
 }));
 
 export const sessionNotesRelations = relations(sessionNotes, ({ one }) => ({
@@ -614,3 +801,59 @@ export const attachmentsRelations = relations(attachments, ({ one }) => ({
 export const auditLogRelations = relations(auditLog, ({ one }) => ({
   user: one(users, { fields: [auditLog.userId], references: [users.id] }),
 }));
+
+export const goalsRelations = relations(goals, ({ one, many }) => ({
+  student: one(students, {
+    fields: [goals.studentId],
+    references: [students.id],
+  }),
+  subject: one(subjects, {
+    fields: [goals.subjectId],
+    references: [subjects.id],
+  }),
+  steps: many(goalSteps),
+}));
+
+export const goalStepsRelations = relations(goalSteps, ({ one }) => ({
+  goal: one(goals, { fields: [goalSteps.goalId], references: [goals.id] }),
+  completedInSession: one(sessions, {
+    fields: [goalSteps.completedInSessionId],
+    references: [sessions.id],
+  }),
+}));
+
+export const assessmentSeriesRelations = relations(
+  assessmentSeries,
+  ({ one, many }) => ({
+    student: one(students, {
+      fields: [assessmentSeries.studentId],
+      references: [students.id],
+    }),
+    subject: one(subjects, {
+      fields: [assessmentSeries.subjectId],
+      references: [subjects.id],
+    }),
+    assessments: many(assessments),
+  }),
+);
+
+export const assessmentsRelations = relations(assessments, ({ one }) => ({
+  series: one(assessmentSeries, {
+    fields: [assessments.seriesId],
+    references: [assessmentSeries.id],
+  }),
+  session: one(sessions, {
+    fields: [assessments.sessionId],
+    references: [sessions.id],
+  }),
+}));
+
+export const progressReportsRelations = relations(
+  progressReports,
+  ({ one }) => ({
+    student: one(students, {
+      fields: [progressReports.studentId],
+      references: [students.id],
+    }),
+  }),
+);

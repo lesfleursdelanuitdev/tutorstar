@@ -9,16 +9,16 @@ import {
   packages,
   sessions,
   students,
-  subjects,
 } from "@/db/schema";
 import { sessionAmountCents, type PackageUnit } from "@/lib/billing";
+import { subjectNamesSql } from "@/lib/subjects";
 
 export type BillableSession = {
   id: string;
   scheduledAt: Date;
   durationMinutes: number;
   studentName: string;
-  subjectName: string;
+  subjectNames: string;
   amountCents: number;
 };
 
@@ -43,11 +43,10 @@ export async function getBillableSessions(
       durationMinutes: sessions.durationMinutes,
       rateCents: sessions.rateCents,
       studentName: students.name,
-      subjectName: subjects.name,
+      subjectNames: subjectNamesSql,
     })
     .from(sessions)
     .innerJoin(engagements, eq(sessions.engagementId, engagements.id))
-    .innerJoin(subjects, eq(engagements.subjectId, subjects.id))
     .innerJoin(students, eq(engagements.studentId, students.id))
     .leftJoin(invoiceLineItems, eq(invoiceLineItems.sessionId, sessions.id))
     .where(
@@ -66,7 +65,7 @@ export async function getBillableSessions(
     scheduledAt: r.scheduledAt,
     durationMinutes: r.durationMinutes,
     studentName: r.studentName,
-    subjectName: r.subjectName,
+    subjectNames: r.subjectNames,
     amountCents: sessionAmountCents(r.rateCents, r.durationMinutes),
   }));
 }

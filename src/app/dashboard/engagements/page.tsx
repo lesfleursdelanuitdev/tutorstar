@@ -5,12 +5,17 @@ import { db } from "@/db";
 import { engagements } from "@/db/schema";
 import { formatCents } from "@/lib/money";
 import { requireRole } from "@/lib/session";
+import { subjectNames } from "@/lib/subjects";
 
 export default async function EngagementsPage() {
   await requireRole("tutor");
   const rows = await db.query.engagements.findMany({
     orderBy: [asc(engagements.status), desc(engagements.createdAt)],
-    with: { student: true, subject: true, client: true },
+    with: {
+      student: true,
+      client: true,
+      engagementSubjects: { with: { subject: true } },
+    },
   });
 
   return (
@@ -29,8 +34,8 @@ export default async function EngagementsPage() {
         <div className="card-body p-0">
           {rows.length === 0 ? (
             <p className="p-6 text-base-content/70">
-              No engagements yet. An engagement pairs a student and subject with
-              the client who pays for it — create your first one.
+              No engagements yet. An engagement pairs a student and their
+              subjects with the client who pays for it — create your first one.
             </p>
           ) : (
             <div className="overflow-x-auto">
@@ -38,7 +43,7 @@ export default async function EngagementsPage() {
                 <thead>
                   <tr>
                     <th>Student</th>
-                    <th>Subject</th>
+                    <th>Subjects</th>
                     <th>Client</th>
                     <th>Rate</th>
                     <th>Status</th>
@@ -56,7 +61,7 @@ export default async function EngagementsPage() {
                           {engagement.student.name}
                         </Link>
                       </td>
-                      <td>{engagement.subject.name}</td>
+                      <td>{subjectNames(engagement.engagementSubjects)}</td>
                       <td>{engagement.client.name}</td>
                       <td>{formatCents(engagement.hourlyRateCents)}/hr</td>
                       <td>

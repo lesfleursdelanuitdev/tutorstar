@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Users, CalendarDays, Wallet, BarChart3 } from "lucide-react";
 import { AxolotlMark } from "@/components/axolotl-mark";
+import { HeroBubbles } from "@/components/hero-bubbles";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 const features = [
@@ -72,26 +73,7 @@ export default function Home() {
 
       {/* Hero */}
       <section className="relative overflow-hidden px-6 pb-20 pt-16 text-center sm:pb-24 sm:pt-20">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -left-24 -top-20 size-[260px] rounded-full"
-          style={{ background: "var(--axo-aqua-tint-2)" }}
-        />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -bottom-28 -right-20 size-[300px] rounded-full"
-          style={{ background: "var(--axo-pink-tint-2)" }}
-        />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute right-[12%] top-[22%] size-6 rounded-full"
-          style={{ background: "var(--axo-aqua-blob)" }}
-        />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute right-[8%] top-[36%] size-3.5 rounded-full opacity-60"
-          style={{ background: "var(--axo-pink-soft)" }}
-        />
+        <HeroBubbles />
         <div className="relative mx-auto flex max-w-3xl flex-col items-center gap-5">
           <AxolotlMark size={110} title="Axel the axolotl" />
           <span

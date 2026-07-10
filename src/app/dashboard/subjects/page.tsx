@@ -15,7 +15,7 @@ export default async function SubjectsPage({
   const { error } = await searchParams;
   const rows = await db.query.subjects.findMany({
     orderBy: [asc(subjects.name)],
-    with: { engagements: { columns: { id: true } } },
+    with: { engagementSubjects: { columns: { engagementId: true } } },
   });
 
   return (
@@ -54,10 +54,10 @@ export default async function SubjectsPage({
                 >
                   <div>
                     <span className="font-medium">{subject.name}</span>
-                    {subject.engagements.length > 0 && (
+                    {subject.engagementSubjects.length > 0 && (
                       <span className="badge badge-ghost badge-sm ml-2">
-                        {subject.engagements.length}{" "}
-                        {subject.engagements.length === 1
+                        {subject.engagementSubjects.length}{" "}
+                        {subject.engagementSubjects.length === 1
                           ? "engagement"
                           : "engagements"}
                       </span>

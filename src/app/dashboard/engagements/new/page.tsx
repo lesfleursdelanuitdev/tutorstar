@@ -86,24 +86,26 @@ export default async function NewEngagementPage({
                   ))}
                 </select>
               </label>
-              <label className="form-control">
-                <span className="label-text mb-1">Subject *</span>
-                <select
-                  name="subjectId"
-                  required
-                  defaultValue={subjectId ?? ""}
-                  className="select select-bordered"
-                >
-                  <option value="" disabled>
-                    Choose…
-                  </option>
+              <fieldset className="form-control">
+                <span className="label-text mb-1">Subjects * (one or more)</span>
+                <div className="flex max-h-48 flex-col gap-1 overflow-y-auto rounded-lg border border-base-300 p-3">
                   {subjectRows.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
+                    <label
+                      key={s.id}
+                      className="flex cursor-pointer items-center gap-2"
+                    >
+                      <input
+                        type="checkbox"
+                        name="subjectIds"
+                        value={s.id}
+                        defaultChecked={s.id === subjectId}
+                        className="checkbox checkbox-sm"
+                      />
+                      <span>{s.name}</span>
+                    </label>
                   ))}
-                </select>
-              </label>
+                </div>
+              </fieldset>
               <label className="form-control">
                 <span className="label-text mb-1">Paying client *</span>
                 <select

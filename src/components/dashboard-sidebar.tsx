@@ -30,11 +30,13 @@ const NAV = [
 type DashboardSidebarProps = {
   draftInvoiceCount?: number;
   className?: string;
+  onNavigate?: () => void;
 };
 
 export function DashboardSidebar({
   draftInvoiceCount = 0,
   className,
+  onNavigate,
 }: DashboardSidebarProps) {
   const pathname = usePathname();
 
@@ -45,12 +47,13 @@ export function DashboardSidebar({
 
   return (
     <aside
-      className={`flex w-[230px] shrink-0 flex-col gap-1.5 rounded-r-[28px] px-3.5 py-6 ${className ?? ""}`}
-      style={{ background: "var(--axo-ink)" }}
+      className={`flex w-[230px] shrink-0 flex-col gap-1.5 rounded-r-[28px] bg-neutral px-3.5 py-6 ${className ?? ""}`}
+      style={{ backgroundColor: "var(--axo-ink)" }}
     >
       <Link
         href="/dashboard"
         className="mb-5 flex items-center gap-2 px-2.5"
+        onClick={onNavigate}
       >
         <AxolotlMark size={30} gills={false} title="TutorStar" />
         <span className="font-display text-lg font-extrabold text-white">
@@ -67,6 +70,7 @@ export function DashboardSidebar({
             <Link
               key={href}
               href={href}
+              onClick={onNavigate}
               className={`flex items-center gap-2.5 rounded-full px-3.5 py-3 text-sm font-bold transition ${
                 active
                   ? "bg-primary text-primary-content"
@@ -94,6 +98,7 @@ export function DashboardSidebar({
           <Link
             href="/dashboard/invoices"
             className="text-[13px] font-extrabold text-info hover:underline"
+            onClick={onNavigate}
           >
             Send them →
           </Link>

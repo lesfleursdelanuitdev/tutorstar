@@ -1,9 +1,19 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { asc, eq } from "drizzle-orm";
+import { asc, desc, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { clients, students } from "@/db/schema";
+import {
+  assessmentSeries,
+  assessments,
+  clients,
+  goalSteps,
+  goals,
+  progressReports,
+  students,
+  subjects,
+} from "@/db/schema";
 import { isUuid } from "@/lib/forms";
+import type { GoalStatus } from "@/lib/progress";
 import { requireRole } from "@/lib/session";
 import {
   linkClientStudentAction,
@@ -15,6 +25,7 @@ import {
   setStudentLoginAction,
   updateStudentAction,
 } from "../actions";
+import { StudentProgressPanels } from "../student-progress-panels";
 
 export default async function StudentDetailPage({
   params,
@@ -34,9 +45,32 @@ export default async function StudentDetailPage({
   });
   if (!student) notFound();
 
-  const allClients = await db.query.clients.findMany({
-    orderBy: [asc(clients.name)],
-  });
+  const [allClients, allSubjects, goalRows, seriesRows, reportRows] =
+    await Promise.all([
+      db.query.clients.findMany({ orderBy: [asc(clients.name)] }),
+      db.query.subjects.findMany({ orderBy: [asc(subjects.name)] }),
+      db.query.goals.findMany({
+        where: eq(goals.studentId, id),
+        orderBy: [asc(goals.orderIndex), asc(goals.createdAt)],
+        with: {
+          subject: { columns: { name: true } },
+          steps: { orderBy: [asc(goalSteps.orderIndex)] },
+        },
+      }),
+      db.query.assessmentSeries.findMany({
+        where: eq(assessmentSeries.studentId, id),
+        orderBy: [asc(assessmentSeries.createdAt)],
+        with: {
+          subject: { columns: { name: true } },
+          assessments: { orderBy: [desc(assessments.takenOn)] },
+        },
+      }),
+      db.query.progressReports.findMany({
+        where: eq(progressReports.studentId, id),
+        orderBy: [desc(progressReports.createdAt)],
+      }),
+    ]);
+
   const linkedIds = new Set(student.clientsStudents.map((l) => l.clientId));
   const unlinked = allClients.filter((c) => !linkedIds.has(c.id));
 
@@ -257,6 +291,17 @@ export default async function StudentDetailPage({
             )}
           </div>
         </div>
+
+        <StudentProgressPanels
+          studentId={student.id}
+          subjects={allSubjects}
+          goalRows={goalRows.map((g) => ({
+            ...g,
+            status: g.status as GoalStatus,
+          }))}
+          seriesRows={seriesRows}
+          reportRows={reportRows}
+        />
       </div>
     </>
   );

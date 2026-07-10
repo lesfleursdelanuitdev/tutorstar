@@ -173,6 +173,122 @@ export function invoiceEmail(params: {
   };
 }
 
+export function progressReportEmail(params: {
+  studentName: string;
+  clientName: string;
+  periodStart: string;
+  periodEnd: string;
+  summary: string;
+  content: {
+    goals: {
+      title: string;
+      subjectName: string | null;
+      stepsCompleted: { title: string }[];
+      complete: boolean;
+    }[];
+    assessments: {
+      seriesName: string;
+      subjectName: string | null;
+      points: { takenOn: string; rawScore: string; maxScore: string }[];
+    }[];
+  };
+}): OutboundEmail {
+  const goalBlocks =
+    params.content.goals.length === 0
+      ? `<p style="margin:0 0 12px;color:#6b7280;font-size:14px;">No shared goal progress in this period.</p>`
+      : params.content.goals
+          .map((g) => {
+            const steps =
+              g.stepsCompleted.length === 0
+                ? ""
+                : `<ul style="margin:8px 0 0;padding-left:18px;">${g.stepsCompleted
+                    .map(
+                      (s) =>
+                        `<li style="margin:0 0 4px;">${escapeHtml(s.title)}</li>`,
+                    )
+                    .join("")}</ul>`;
+            const subject = g.subjectName
+              ? ` <span style="color:#6b7280;">· ${escapeHtml(g.subjectName)}</span>`
+              : "";
+            const done = g.complete
+              ? ` <span style="color:#3f8f7d;font-weight:600;">(complete)</span>`
+              : "";
+            return `<div style="margin:0 0 16px;">
+              <p style="margin:0;font-weight:600;color:#2b2b28;">${escapeHtml(g.title)}${subject}${done}</p>
+              ${steps}
+            </div>`;
+          })
+          .join("");
+
+  const assessmentBlocks =
+    params.content.assessments.length === 0
+      ? `<p style="margin:0 0 12px;color:#6b7280;font-size:14px;">No shared assessments in this period.</p>`
+      : params.content.assessments
+          .map((s) => {
+            const subject = s.subjectName
+              ? ` <span style="color:#6b7280;">· ${escapeHtml(s.subjectName)}</span>`
+              : "";
+            const points = s.points
+              .map((p) => {
+                const pct =
+                  Number(p.maxScore) > 0
+                    ? Math.round(
+                        (Number(p.rawScore) / Number(p.maxScore)) * 1000,
+                      ) / 10
+                    : 0;
+                return `<li style="margin:0 0 4px;">${escapeHtml(p.takenOn)} — ${escapeHtml(String(Number(p.rawScore)))}/${escapeHtml(String(Number(p.maxScore)))} (${pct}%)</li>`;
+              })
+              .join("");
+            return `<div style="margin:0 0 16px;">
+              <p style="margin:0;font-weight:600;color:#2b2b28;">${escapeHtml(s.seriesName)}${subject}</p>
+              <ul style="margin:8px 0 0;padding-left:18px;">${points}</ul>
+            </div>`;
+          })
+          .join("");
+
+  const html = emailLayout(
+    `Progress report — ${escapeHtml(params.studentName)}`,
+    `<p style="margin:0 0 16px;">Hi ${escapeHtml(params.clientName)}, here is a progress update for ${escapeHtml(params.studentName)} covering <strong>${escapeHtml(params.periodStart)}</strong> to <strong>${escapeHtml(params.periodEnd)}</strong>.</p>
+     <p style="margin:0 0 20px;white-space:pre-wrap;">${escapeHtml(params.summary)}</p>
+     <h2 style="margin:0 0 12px;font-size:16px;color:#2b2b28;">Goals</h2>
+     ${goalBlocks}
+     <h2 style="margin:24px 0 12px;font-size:16px;color:#2b2b28;">Assessments</h2>
+     ${assessmentBlocks}`,
+  );
+
+  const text = [
+    `Progress report — ${params.studentName}`,
+    `Period: ${params.periodStart} to ${params.periodEnd}`,
+    "",
+    params.summary,
+    "",
+    "Goals:",
+    ...(params.content.goals.length === 0
+      ? ["(none)"]
+      : params.content.goals.flatMap((g) => [
+          `- ${g.title}${g.complete ? " (complete)" : ""}`,
+          ...g.stepsCompleted.map((s) => `  · ${s.title}`),
+        ])),
+    "",
+    "Assessments:",
+    ...(params.content.assessments.length === 0
+      ? ["(none)"]
+      : params.content.assessments.flatMap((s) => [
+          `- ${s.seriesName}`,
+          ...s.points.map(
+            (p) => `  · ${p.takenOn}: ${p.rawScore}/${p.maxScore}`,
+          ),
+        ])),
+  ].join("\n");
+
+  return {
+    to: "",
+    subject: `Progress report for ${params.studentName}`,
+    html,
+    text,
+  };
+}
+
 // Line-item descriptions are user-authored, so escape before interpolating
 // into the email HTML.
 function escapeHtml(value: string): string {

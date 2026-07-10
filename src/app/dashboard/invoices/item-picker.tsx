@@ -30,7 +30,7 @@ export function ItemPicker({
                     className="checkbox checkbox-sm"
                   />
                   <span className="flex-1">
-                    {s.studentName} · {s.subjectName}
+                    {s.studentName} · {s.subjectNames}
                     <span className="text-base-content/60 text-sm">
                       {" "}
                       — {formatDateTime(s.scheduledAt)} ({s.durationMinutes} min)

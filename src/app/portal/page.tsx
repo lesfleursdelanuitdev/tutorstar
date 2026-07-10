@@ -1,15 +1,25 @@
-import { CalendarClock, Package, Receipt, StickyNote } from "lucide-react";
+import {
+  CalendarClock,
+  Package,
+  Receipt,
+  StickyNote,
+  Target,
+  ChartColumn,
+} from "lucide-react";
 import { and, asc, desc, eq, gte, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import {
+  assessmentSeries,
+  assessments,
   clientsStudents,
   engagements,
+  goalSteps,
+  goals,
   invoices,
   packages,
   sessionNotes,
   sessions,
   students,
-  subjects,
   usersClients,
 } from "@/db/schema";
 import {
@@ -19,8 +29,14 @@ import {
   type InvoiceStatus,
 } from "@/lib/billing";
 import { formatCents } from "@/lib/money";
+import {
+  formatScore,
+  goalProgressLabel,
+  isGoalComplete,
+} from "@/lib/progress";
 import { formatDateTime } from "@/lib/scheduling";
 import { requirePortalUser } from "@/lib/session";
+import { subjectNamesSql } from "@/lib/subjects";
 
 const MODE_LABEL = { online: "Online", in_person: "In person" } as const;
 
@@ -57,7 +73,8 @@ export default async function PortalPage() {
 
   const now = new Date();
 
-  const [upcoming, sharedNotes, pkgRows, invoiceRows] = await Promise.all([
+  const [upcoming, sharedNotes, pkgRows, invoiceRows, sharedGoals, sharedSeries] =
+    await Promise.all([
     // Upcoming schedule: still-scheduled sessions for visible students.
     studentIds.length
       ? db
@@ -67,12 +84,11 @@ export default async function PortalPage() {
             durationMinutes: sessions.durationMinutes,
             mode: sessions.mode,
             studentName: students.name,
-            subjectName: subjects.name,
+            subjectNames: subjectNamesSql,
           })
           .from(sessions)
           .innerJoin(engagements, eq(sessions.engagementId, engagements.id))
           .innerJoin(students, eq(engagements.studentId, students.id))
-          .innerJoin(subjects, eq(engagements.subjectId, subjects.id))
           .where(
             and(
               inArray(engagements.studentId, studentIds),
@@ -91,13 +107,12 @@ export default async function PortalPage() {
             body: sessionNotes.body,
             scheduledAt: sessions.scheduledAt,
             studentName: students.name,
-            subjectName: subjects.name,
+            subjectNames: subjectNamesSql,
           })
           .from(sessionNotes)
           .innerJoin(sessions, eq(sessionNotes.sessionId, sessions.id))
           .innerJoin(engagements, eq(sessions.engagementId, engagements.id))
           .innerJoin(students, eq(engagements.studentId, students.id))
-          .innerJoin(subjects, eq(engagements.subjectId, subjects.id))
           .where(
             and(
               eq(sessionNotes.visibility, "shared"),
@@ -138,6 +153,43 @@ export default async function PortalPage() {
             payments: { columns: { amountCents: true } },
           },
           orderBy: [desc(invoices.number)],
+        })
+      : [],
+    studentIds.length
+      ? db.query.goals.findMany({
+          where: and(
+            inArray(goals.studentId, studentIds),
+            eq(goals.visibility, "shared"),
+            eq(goals.status, "active"),
+          ),
+          orderBy: [asc(goals.orderIndex)],
+          with: {
+            subject: { columns: { name: true } },
+            student: { columns: { name: true } },
+            steps: { orderBy: [asc(goalSteps.orderIndex)] },
+          },
+        })
+      : [],
+    studentIds.length
+      ? db.query.assessmentSeries.findMany({
+          where: and(
+            inArray(assessmentSeries.studentId, studentIds),
+            eq(assessmentSeries.visibility, "shared"),
+          ),
+          orderBy: [asc(assessmentSeries.name)],
+          with: {
+            subject: { columns: { name: true } },
+            student: { columns: { name: true } },
+            assessments: {
+              orderBy: [asc(assessments.takenOn)],
+              columns: {
+                id: true,
+                takenOn: true,
+                rawScore: true,
+                maxScore: true,
+              },
+            },
+          },
         })
       : [],
   ]);
@@ -183,7 +235,7 @@ export default async function PortalPage() {
                   >
                     <div>
                       <div className="font-medium">
-                        {s.subjectName}
+                        {s.subjectNames}
                         {studentIds.length > 1 && (
                           <span className="text-base-content/60">
                             {" "}
@@ -221,7 +273,7 @@ export default async function PortalPage() {
                   className="flex flex-col gap-1 py-3 first:pt-0 last:pb-0"
                 >
                   <div className="text-sm text-base-content/70">
-                    {note.subjectName}
+                    {note.subjectNames}
                     {studentIds.length > 1 && (
                       <span> · {note.studentName}</span>
                     )}{" "}
@@ -230,6 +282,146 @@ export default async function PortalPage() {
                   <p className="whitespace-pre-wrap">{note.body}</p>
                 </li>
               ))}
+            </ul>
+          </div>
+        </section>
+      )}
+
+      {/* Shared goals / lesson plan */}
+      {sharedGoals.length > 0 && (
+        <section className="card bg-base-100 shadow-sm">
+          <div className="card-body gap-4">
+            <h2 className="card-title text-lg gap-2">
+              <Target className="size-5 text-primary" />
+              Learning goals
+            </h2>
+            <ul className="flex flex-col gap-3">
+              {sharedGoals.map((goal) => {
+                const complete = isGoalComplete(goal.steps);
+                return (
+                  <li
+                    key={goal.id}
+                    className="rounded-xl bg-base-200/50 p-3"
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-semibold">{goal.title}</span>
+                      {goal.subject && (
+                        <span className="text-sm text-base-content/60">
+                          · {goal.subject.name}
+                        </span>
+                      )}
+                      {studentIds.length > 1 && (
+                        <span className="text-sm text-base-content/60">
+                          · {goal.student.name}
+                        </span>
+                      )}
+                      <span className="badge badge-ghost badge-sm">
+                        {goalProgressLabel(goal.steps)}
+                      </span>
+                      {complete && (
+                        <span className="badge badge-success badge-sm">
+                          Complete
+                        </span>
+                      )}
+                    </div>
+                    {goal.description && (
+                      <p className="mt-1 text-sm text-base-content/70">
+                        {goal.description}
+                      </p>
+                    )}
+                    <ul className="mt-2 flex flex-col gap-1">
+                      {goal.steps.map((step) => (
+                        <li
+                          key={step.id}
+                          className={`text-sm ${
+                            step.completedAt
+                              ? "line-through text-base-content/50"
+                              : ""
+                          }`}
+                        >
+                          {step.completedAt ? "✓" : "○"} {step.title}
+                        </li>
+                      ))}
+                    </ul>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </section>
+      )}
+
+      {/* Shared assessment trends */}
+      {sharedSeries.some((s) => s.assessments.length > 0) && (
+        <section className="card bg-base-100 shadow-sm">
+          <div className="card-body gap-4">
+            <h2 className="card-title text-lg gap-2">
+              <ChartColumn className="size-5 text-primary" />
+              Assessment progress
+            </h2>
+            <ul className="flex flex-col gap-4">
+              {sharedSeries
+                .filter((s) => s.assessments.length > 0)
+                .map((series) => {
+                  const maxPct = Math.max(
+                    ...series.assessments.map((a) =>
+                      Number(a.maxScore) > 0
+                        ? (Number(a.rawScore) / Number(a.maxScore)) * 100
+                        : 0,
+                    ),
+                    1,
+                  );
+                  return (
+                    <li key={series.id}>
+                      <div className="mb-2 font-semibold">
+                        {series.name}
+                        {series.subject && (
+                          <span className="text-sm font-normal text-base-content/60">
+                            {" "}
+                            · {series.subject.name}
+                          </span>
+                        )}
+                        {studentIds.length > 1 && (
+                          <span className="text-sm font-normal text-base-content/60">
+                            {" "}
+                            · {series.student.name}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex h-16 items-end gap-1.5">
+                        {series.assessments.map((a) => {
+                          const pct =
+                            Number(a.maxScore) > 0
+                              ? (Number(a.rawScore) / Number(a.maxScore)) * 100
+                              : 0;
+                          const height = Math.max((pct / maxPct) * 100, 8);
+                          return (
+                            <div
+                              key={a.id}
+                              className="flex flex-1 flex-col items-center gap-1"
+                              title={`${a.takenOn}: ${formatScore(a.rawScore, a.maxScore)}`}
+                            >
+                              <div
+                                className="w-full rounded-t-md bg-primary"
+                                style={{ height: `${height}%` }}
+                              />
+                              <span className="text-[10px] text-base-content/60">
+                                {a.takenOn.slice(5)}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <ul className="mt-2 text-xs text-base-content/70">
+                        {series.assessments.map((a) => (
+                          <li key={`${a.id}-lbl`}>
+                            {a.takenOn}: {formatScore(a.rawScore, a.maxScore)}
+                          </li>
+                        ))}
+                      </ul>
+                    </li>
+                  );
+                })}
             </ul>
           </div>
         </section>

@@ -10,6 +10,7 @@ import {
 } from "@/db/schema";
 import { formatCents } from "@/lib/money";
 import { requireRole } from "@/lib/session";
+import { subjectNames } from "@/lib/subjects";
 
 function startOfDay(d = new Date()) {
   const x = new Date(d);
@@ -174,7 +175,12 @@ export default async function DashboardPage() {
       ),
       orderBy: [asc(sessions.scheduledAt)],
       with: {
-        engagement: { with: { student: true, subject: true } },
+        engagement: {
+          with: {
+            student: true,
+            engagementSubjects: { with: { subject: true } },
+          },
+        },
       },
     }),
     db.query.invoices.findMany({
@@ -309,7 +315,9 @@ export default async function DashboardPage() {
             <ul className="flex flex-col gap-2.5">
               {todaySessions.map((session) => {
                 const student = session.engagement.student;
-                const subject = session.engagement.subject;
+                const subjectLabel = subjectNames(
+                  session.engagement.engagementSubjects,
+                );
                 const isAlert =
                   session.status === "cancelled_by_client" ||
                   session.status === "no_show";
@@ -354,7 +362,7 @@ export default async function DashboardPage() {
                         {student.name}
                       </p>
                       <p className="truncate text-xs text-[color:var(--axo-muted)]">
-                        {subject.name} · {session.durationMinutes} min
+                        {subjectLabel} · {session.durationMinutes} min
                       </p>
                     </div>
                     <span
