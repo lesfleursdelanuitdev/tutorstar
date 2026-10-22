@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TutorLumi reading mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ground: #FBF7EE; --surface: #FFFFFF; --bar: #FFFDF8; --line: #E6DFD0; --soft: #F3EEE3;
+    --ink: #26262B; --muted: #5C5A55; --accent: #2F5DA8; --accent-soft: #E5EDF9;
+    --hi: #FFE27A; --good: #23734A; --good-soft: #E3F1E8; --bad: #C8553D; --bad-soft: #FBE9E4;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--ground); color: var(--ink); font-family: 'Lexend', system-ui, sans-serif; }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  button:focus-visible, a:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .topbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; padding: 16px 32px; background: var(--bar); border-bottom: 1px solid var(--line); }
+  .brand { display: flex; align-items: center; gap: 10px; font-size: 22px; font-weight: 600; }
+  .chip { font-size: 16px; padding: 8px 14px; border-radius: 999px; background: var(--soft); }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 40px 24px 64px; display: flex; flex-direction: column; gap: 28px; }
+  .wide { max-width: 1200px; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 20px; }
+  .eyebrow { font-size: 16px; color: var(--muted); }
+  h1 { margin: 0; font-size: 40px; line-height: 1.25; font-weight: 600; }
+  .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; padding: 16px; }
+  .play { display: flex; align-items: center; gap: 10px; min-height: 56px; padding: 0 26px; border-radius: 999px; border: 0; background: var(--accent); color: #fff; font-size: 20px; font-weight: 600; }
+  .speeds { display: flex; gap: 6px; padding: 4px; background: var(--soft); border-radius: 999px; }
+  .speeds button { min-height: 46px; padding: 0 18px; border-radius: 999px; border: 0; background: transparent; color: var(--muted); font-size: 17px; }
+  .speeds button[aria-pressed="true"] { background: #fff; color: var(--ink); }
+  .story { padding: 40px 44px; display: flex; flex-direction: column; gap: 28px; }
+  .para { display: flex; flex-wrap: wrap; column-gap: 4px; row-gap: 10px; font-size: 26px; line-height: 1.6; letter-spacing: 0.02em; }
+  .word { background: transparent; border: 0; padding: 0 4px; border-radius: 8px; font-size: inherit; letter-spacing: inherit; }
+  .word.on, .w.on, .sent.on { background: var(--hi); }
+  .primary { display: inline-flex; align-items: center; min-height: 56px; padding: 0 28px; border-radius: 999px; border: 0; background: var(--ink); color: #fff; font-size: 20px; font-weight: 600; }
+  .primary:disabled { background: #A8A39A; cursor: default; }
+  .row-end { display: flex; justify-content: flex-end; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .cols { display: flex; flex-wrap: wrap; gap: 28px; align-items: flex-start; }
+  .side { flex: 1 1 400px; min-width: 0; padding: 28px 32px; display: flex; flex-direction: column; gap: 16px; }
+  .side p { margin: 0; font-size: 19px; line-height: 1.75; letter-spacing: 0.02em; word-spacing: 0.12em; }
+  .sent { border-radius: 6px; padding: 2px 0; }
+  .main { flex: 1.25 1 480px; min-width: 0; display: flex; flex-direction: column; gap: 20px; }
+  .qcard { padding: 32px; display: flex; flex-direction: column; gap: 24px; }
+  .qline { display: flex; align-items: flex-start; gap: 16px; }
+  .qtext { flex: 1; display: flex; flex-wrap: wrap; column-gap: 4px; row-gap: 6px; font-size: 28px; line-height: 1.45; font-weight: 500; }
+  .w { border-radius: 8px; padding: 0 4px; }
+  .speak { flex: none; width: 52px; min-height: 52px; border-radius: 16px; border: 0; background: var(--accent-soft); display: flex; align-items: center; justify-content: center; }
+  .choice-row { display: flex; align-items: stretch; gap: 10px; }
+  .choice { flex: 1; display: flex; align-items: center; gap: 16px; min-height: 68px; padding: 12px 20px; border-radius: 16px; border: 2px solid #D9D1BF; background: #fff; text-align: left; }
+  .choice .letter { flex: none; width: 36px; height: 36px; border-radius: 999px; background: var(--soft); display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 600; }
+  .choice .ctext { display: flex; flex-wrap: wrap; column-gap: 4px; row-gap: 4px; font-size: 22px; line-height: 1.4; }
+  .choice .mark { margin-left: auto; font-size: 17px; font-weight: 600; }
+  .choice.right { border-color: var(--good); background: var(--good-soft); }
+  .choice.right .mark { color: var(--good); }
+  .choice.wrong { border-color: var(--bad); background: var(--bad-soft); }
+  .choice.wrong .mark { color: #A33E29; }
+  .choice.faded { opacity: 0.55; }
+  .choice:disabled { cursor: default; color: var(--ink); }
+  .feedback { border-radius: 16px; padding: 20px 24px; font-size: 22px; font-weight: 500; display: flex; flex-direction: column; gap: 6px; }
+  .feedback.good { background: var(--good-soft); border: 1px solid #A9D3B8; }
+  .feedback.try { background: #FFF6D6; border: 1px solid #EBD38A; }
+  .feedback small { font-size: 18px; font-weight: 400; color: var(--muted); }
+  .dots { display: flex; gap: 6px; }
+  .dots span { width: 14px; height: 14px; border-radius: 999px; background: var(--line); }
+  .dots span.done { background: var(--accent); }
+  .dots span.now { background: #9DB5DD; }
+  .faces { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+  .face { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 24px 12px; border-radius: 20px; border: 3px solid var(--line); background: #fff; font-size: 22px; font-weight: 500; }
+  .face[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+  .chips { display: flex; flex-wrap: wrap; gap: 12px; }
+  .chips button { min-height: 52px; padding: 0 22px; border-radius: 999px; border: 2px solid #D9D1BF; background: #fff; font-size: 19px; }
+  .chips button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+  .center { text-align: center; align-items: center; }
+  [hidden] { display: none !important; }
+  @media (max-width: 600px) {
+    .topbar { padding: 12px 16px; }
+    .wrap { padding: 24px 16px 48px; }
+    .story { padding: 24px 20px; }
+    .para { font-size: 22px; }
+    h1 { font-size: 32px; }
+    .faces { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true"><circle cx="14" cy="14" r="12" fill="none" stroke="#2F5DA8" stroke-width="2.5"/><path d="M14 7v7l5 3" fill="none" stroke="#2F5DA8" stroke-width="2.5" stroke-linecap="round"/></svg>
+    TutorLumi
+  </div>
+  <div id="top-read" style="display:flex;gap:12px;flex-wrap:wrap">
+    <span class="chip">Story 1 of 2 today</span>
+    <span class="chip">3-day streak</span>
+  </div>
+  <div id="top-quiz" hidden style="display:flex;align-items:center;gap:12px">
+    <span id="qnum" style="font-size:16px">Question 1 of 4</span>
+    <div class="dots" id="dots" aria-hidden="true"></div>
+  </div>
+  <span id="top-rate" class="chip" hidden>The Tiny Horse Contest</span>
+</header>
+
+<!-- 1. Read the story -->
+<main id="screen-read" class="wrap">
+  <div style="display:flex;flex-direction:column;gap:8px">
+    <span class="eyebrow">A story about art and horses</span>
+    <h1>The Tiny Horse Contest</h1>
+  </div>
+  <div class="card controls">
+    <button class="play" id="play">
+      <svg id="icon-play" width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><path d="M6 4l12 7-12 7z" fill="#fff"/></svg>
+      <svg id="icon-pause" hidden width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><rect x="5" y="4" width="4" height="14" rx="1" fill="#fff"/><rect x="13" y="4" width="4" height="14" rx="1" fill="#fff"/></svg>
+      <span id="play-label">Read to me</span>
+    </button>
+    <div class="speeds" role="group" aria-label="Reading speed">
+      <button data-speed="slow" aria-pressed="false">Slow</button>
+      <button data-speed="normal" aria-pressed="true">Normal</button>
+      <button data-speed="fast" aria-pressed="false">Fast</button>
+    </div>
+    <span class="eyebrow">Tap any word to hear it</span>
+  </div>
+  <div class="card story" id="story"></div>
+  <div class="row-end"><button class="primary" id="to-quiz">I’m done reading</button></div>
+</main>
+
+<!-- 2. Answer the questions -->
+<main id="screen-quiz" class="wrap wide" hidden>
+  <div class="cols">
+    <section class="card side" aria-label="The story">
+      <div style="display:flex;flex-direction:column;gap:4px">
+        <span class="eyebrow" style="font-size:15px">The story stays here while you answer</span>
+        <h2 style="margin:0;font-size:24px;font-weight:600">The Tiny Horse Contest</h2>
+      </div>
+      <div id="side-story" style="display:flex;flex-direction:column;gap:16px"></div>
+    </section>
+    <section class="main">
+      <div class="card qcard">
+        <div class="qline">
+          <div class="qtext" id="qtext"></div>
+          <button class="speak" id="read-q" aria-label="Read the question aloud" style="border-radius:999px"></button>
+        </div>
+        <div id="choices" style="display:flex;flex-direction:column;gap:14px"></div>
+      </div>
+      <div class="feedback good" id="fb-good" hidden>That’s right! Great reading.</div>
+      <div class="feedback try" id="fb-try" hidden>
+        <span>Not quite. The answer is “<span id="fb-answer"></span>”.</span>
+        <small>Look at the yellow sentence in the story to see why.</small>
+      </div>
+      <div class="row-end" id="next-row" hidden><button class="primary" id="next">Next question</button></div>
+      <div class="row-end" id="finish-row" hidden style="justify-content:space-between">
+        <span style="font-size:22px;font-weight:500">You got <span id="score">0</span> of 4 right!</span>
+        <button class="primary" id="to-rate">Finish</button>
+      </div>
+    </section>
+  </div>
+</main>
+
+<!-- 3. Rate the story -->
+<main id="screen-rate" class="wrap" hidden>
+  <div id="rate-form" style="display:flex;flex-direction:column;gap:32px">
+    <div style="display:flex;align-items:center;justify-content:center;gap:16px">
+      <h1 style="font-size:36px;text-align:center">Did you like this story?</h1>
+      <button class="speak" aria-label="Read the question aloud" style="border-radius:999px"></button>
+    </div>
+    <div class="faces" role="group" aria-label="How much did you like it?">
+      <button class="face" data-face="0" aria-pressed="false">
+        <svg width="88" height="88" viewBox="0 0 88 88" aria-hidden="true"><circle cx="44" cy="44" r="40" fill="#FFE27A" stroke="#26262B" stroke-width="3"/><circle cx="31" cy="36" r="4.5" fill="#26262B"/><circle cx="57" cy="36" r="4.5" fill="#26262B"/><path d="M24 50q20 22 40 0" fill="none" stroke="#26262B" stroke-width="4" stroke-linecap="round"/></svg>
+        Loved it
+      </button>
+      <button class="face" data-face="1" aria-pressed="false">
+        <svg width="88" height="88" viewBox="0 0 88 88" aria-hidden="true"><circle cx="44" cy="44" r="40" fill="#F3EEE3" stroke="#26262B" stroke-width="3"/><circle cx="31" cy="36" r="4.5" fill="#26262B"/><circle cx="57" cy="36" r="4.5" fill="#26262B"/><path d="M28 57h32" fill="none" stroke="#26262B" stroke-width="4" stroke-linecap="round"/></svg>
+        It was okay
+      </button>
+      <button class="face" data-face="2" aria-pressed="false">
+        <svg width="88" height="88" viewBox="0 0 88 88" aria-hidden="true"><circle cx="44" cy="44" r="40" fill="#DCE6F5" stroke="#26262B" stroke-width="3"/><circle cx="31" cy="36" r="4.5" fill="#26262B"/><circle cx="57" cy="36" r="4.5" fill="#26262B"/><path d="M27 62q17 -14 34 0" fill="none" stroke="#26262B" stroke-width="4" stroke-linecap="round"/></svg>
+        Didn’t like it
+      </button>
+    </div>
+    <div class="card" id="follow" hidden style="padding:28px;display:flex;flex-direction:column;gap:18px">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <h2 id="follow-q" style="margin:0;font-size:26px;font-weight:500">What did you like?</h2>
+        <span class="eyebrow">Tap any. You can skip this.</span>
+      </div>
+      <div class="chips" id="chips"></div>
+    </div>
+    <div class="row-end"><button class="primary" id="done" disabled>Done</button></div>
+  </div>
+  <div class="card center" id="thanks" hidden style="display:flex;flex-direction:column;gap:20px;padding:48px 24px">
+    <svg width="96" height="96" viewBox="0 0 96 96" aria-hidden="true"><path d="M48 8l11 24 26 3-19 18 5 26-23-13-23 13 5-26-19-18 26-3z" fill="#FFE27A" stroke="#26262B" stroke-width="3" stroke-linejoin="round"/></svg>
+    <h1 style="font-size:38px">Great reading!</h1>
+    <p style="margin:0;font-size:22px;line-height:1.6;max-width:520px">Thanks for telling us what you think. Your next story is ready when you are.</p>
+    <button class="primary" id="restart" style="background:var(--accent)">Start over</button>
+  </div>
+</main>
+
+<script>
+// Mockup only: there is no audio. Highlighting runs on a timer to show the
+// behavior; the real app plays pre-generated Azure audio with word timings.
+const STORY = [
+  ['Maya loved painting tiny things.', 'Her desk was full of little paint pots and thin brushes.'],
+  ['One day, her art teacher told the class about a contest.', '“Make a tiny horse,” said Mr. Reed.', '“The best one will win a prize.”'],
+  ['Maya rushed home after school.', 'She found a small gray horse made of clay.', 'She painted its body brown.', 'She added a white spot on its nose and a long black tail.'],
+  ['When she picked it up, her hand slipped.', 'The horse fell to the floor, and one leg snapped off!'],
+  ['Maya was so unhappy.', 'She wanted to quit.', 'Then she looked at the broken leg again.'],
+  ['“I can fix this,” she said.', 'She used a drop of glue to put the leg back on.', 'Then she repainted the crack with brown paint.', 'Now no one could see it.'],
+  ['On the day of the contest, Mr. Reed held up each horse.', 'When he got to Maya’s horse, he smiled.', '“Look at the white spot on its nose,” he said.', '“This horse looks real!”'],
+  ['Maya won second place.', 'She felt proud, because she did not give up.']
+];
+const QUESTIONS = [
+  { q: 'What did Maya paint on the horse’s nose?', choices: ['A black star', 'A white spot', 'A brown stripe'], ans: 1, s: 'She added a white spot on its nose and a long black tail.' },
+  { q: 'What happened right after Maya’s hand slipped?', choices: ['The horse fell, and a leg snapped off.', 'She painted the body brown.', 'She won second place.'], ans: 0, s: 'The horse fell to the floor, and one leg snapped off!' },
+  { q: 'How did Maya feel when the leg broke?', choices: ['Proud', 'Excited', 'Unhappy'], ans: 2, s: 'Maya was so unhappy.' },
+  { q: 'Why did Maya feel proud at the end?', choices: ['She won first place.', 'She did not give up.', 'Mr. Reed fixed her horse.'], ans: 1, s: 'She felt proud, because she did not give up.' }
+];
+const SPEED_MS = { slow: 620, normal: 460, fast: 340 };
+const SPEAKER = '<svg width="24" height="24" viewBox="0 0 26 26" aria-hidden="true"><path d="M4 10h4l6-5v16l-6-5H4z" fill="#2F5DA8"/><path d="M18 9a5 5 0 0 1 0 8M20.5 6a9 9 0 0 1 0 14" fill="none" stroke="#2F5DA8" stroke-width="2" stroke-linecap="round"/></svg>';
+const $ = (id) => document.getElementById(id);
+const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
+document.querySelectorAll('.speak').forEach((b) => { b.innerHTML = SPEAKER; });
+
+function show(name) {
+  ['read', 'quiz', 'rate'].forEach((s) => { $('screen-' + s).hidden = s !== name; $('top-' + s).hidden = s !== name; });
+  window.scrollTo(0, 0);
+}
+
+// 1. Reading with word highlighting
+const words = [];
+let cur = -1, timer = null, speed = 'normal';
+STORY.forEach((sentences) => {
+  const p = el('div', 'para');
+  sentences.join(' ').split(' ').forEach((t) => {
+    const idx = words.length;
+    const b = el('button', 'word', t);
+    b.addEventListener('click', () => { stop(); setCur(idx); });
+    words.push(b);
+    p.appendChild(b);
+  });
+  $('story').appendChild(p);
+});
+function setCur(i) { if (words[cur]) words[cur].classList.remove('on'); cur = i; if (words[cur]) words[cur].classList.add('on'); }
+function playUi(on) {
+  $('icon-play').hidden = on; $('icon-pause').hidden = !on;
+  $('play-label').textContent = on ? 'Pause' : (cur > -1 ? 'Keep reading' : 'Read to me');
+}
+function start() {
+  clearInterval(timer);
+  timer = setInterval(() => {
+    if (cur + 1 >= words.length) { stop(); setCur(-1); playUi(false); return; }
+    setCur(cur + 1);
+  }, SPEED_MS[speed]);
+  playUi(true);
+}
+function stop() { clearInterval(timer); timer = null; playUi(false); }
+$('play').addEventListener('click', () => (timer ? stop() : start()));
+document.querySelectorAll('[data-speed]').forEach((b) => b.addEventListener('click', () => {
+  speed = b.dataset.speed;
+  document.querySelectorAll('[data-speed]').forEach((o) => o.setAttribute('aria-pressed', String(o === b)));
+  if (timer) start();
+}));
+$('to-quiz').addEventListener('click', () => { stop(); show('quiz'); renderQuiz(); });
+
+// 2. Questions
+const sentenceEls = [];
+STORY.forEach((sentences) => {
+  const p = el('p');
+  sentences.forEach((s) => { const sp = el('span', 'sent', s); sentenceEls.push(sp); p.appendChild(sp); p.appendChild(document.createTextNode(' ')); });
+  $('side-story').appendChild(p);
+});
+let qi = 0, picked = null, score = 0, readTimer = null;
+function wordSpans(text) { return text.split(' ').map((t) => el('span', 'w', t)); }
+function readAloud(spans) {
+  clearInterval(readTimer);
+  document.querySelectorAll('.w.on').forEach((n) => n.classList.remove('on'));
+  let i = 0;
+  spans[0].classList.add('on');
+  readTimer = setInterval(() => {
+    spans[i].classList.remove('on');
+    i += 1;
+    if (i >= spans.length) { clearInterval(readTimer); return; }
+    spans[i].classList.add('on');
+  }, 420);
+}
+function renderQuiz() {
+  const q = QUESTIONS[qi];
+  const answered = picked !== null;
+  const correct = answered && picked === q.ans;
+  $('qnum').textContent = 'Question ' + (qi + 1) + ' of 4';
+  $('dots').replaceChildren(...QUESTIONS.map((_, i) => el('span', i < qi || (i === qi && answered) ? 'done' : (i === qi ? 'now' : ''))));
+  const qSpans = wordSpans(q.q);
+  $('qtext').replaceChildren(...qSpans);
+  $('read-q').onclick = () => readAloud(qSpans);
+  $('choices').replaceChildren(...q.choices.map((c, ci) => {
+    const row = el('div', 'choice-row');
+    const btn = el('button', 'choice');
+    const spans = wordSpans(c);
+    const text = el('span', 'ctext'); text.append(...spans);
+    btn.append(el('span', 'letter', 'ABC'[ci]), text);
+    if (answered) {
+      btn.disabled = true;
+      if (ci === q.ans) { btn.classList.add('right'); btn.append(el('span', 'mark', 'Correct')); }
+      else if (ci === picked) { btn.classList.add('wrong'); btn.append(el('span', 'mark', 'Your answer')); }
+      else btn.classList.add('faded');
+    }
+    btn.addEventListener('click', () => { if (picked !== null) return; picked = ci; if (ci === q.ans) score += 1; renderQuiz(); });
+    const speak = el('button', 'speak'); speak.innerHTML = SPEAKER;
+    speak.setAttribute('aria-label', 'Read answer ' + 'ABC'[ci] + ' aloud');
+    speak.addEventListener('click', () => readAloud(spans));
+    row.append(btn, speak);
+    return row;
+  }));
+  sentenceEls.forEach((s) => s.classList.toggle('on', answered && !correct && s.textContent === q.s));
+  $('fb-good').hidden = !(answered && correct);
+  $('fb-try').hidden = !(answered && !correct);
+  $('fb-answer').textContent = q.choices[q.ans];
+  const last = qi === QUESTIONS.length - 1;
+  $('next-row').hidden = !(answered && !last);
+  $('finish-row').hidden = !(answered && last);
+  $('score').textContent = score;
+}
+$('next').addEventListener('click', () => { clearInterval(readTimer); qi += 1; picked = null; renderQuiz(); });
+$('to-rate').addEventListener('click', () => { clearInterval(readTimer); show('rate'); });
+
+// 3. Rating
+const LIKED = ['The topic', 'The characters', 'It was funny', 'It was exciting'];
+const DISLIKED = ['The topic', 'It was too long', 'It was boring', 'It was hard to read'];
+document.querySelectorAll('.face').forEach((f) => f.addEventListener('click', () => {
+  document.querySelectorAll('.face').forEach((o) => o.setAttribute('aria-pressed', String(o === f)));
+  const dislike = f.dataset.face === '2';
+  $('follow-q').textContent = dislike ? 'What didn’t you like?' : 'What did you like?';
+  $('chips').replaceChildren(...(dislike ? DISLIKED : LIKED).map((label) => {
+    const c = el('button', null, label);
+    c.setAttribute('aria-pressed', 'false');
+    c.addEventListener('click', () => c.setAttribute('aria-pressed', String(c.getAttribute('aria-pressed') !== 'true')));
+    return c;
+  }));
+  $('follow').hidden = false;
+  $('done').disabled = false;
+}));
+$('done').addEventListener('click', () => { $('rate-form').hidden = true; $('thanks').hidden = false; });
+$('restart').addEventListener('click', () => location.reload());
+</script>
+</body>
+</html>

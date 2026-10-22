@@ -1,0 +1,56 @@
+{
+  "id": "sample-l2-fiction-tiny-horse-contest",
+  "title": "The Tiny Horse Contest",
+  "level": 2,
+  "type": "fiction",
+  "topics": ["miniatures", "horses", "art"],
+  "wordCount": 187,
+  "spellingPatterns": {
+    "-ed": ["rushed", "painted", "added", "slipped", "snapped", "smiled"],
+    "-ing": ["painting"],
+    "un-": ["unhappy"],
+    "re-": ["repainted"],
+    "twoSyllable": ["little", "teacher", "contest", "broken", "second"]
+  },
+  "standards": ["RL.2.1", "RL.2.3", "RF.2.3"],
+  "paragraphs": [
+    ["Maya loved painting tiny things.", "Her desk was full of little paint pots and thin brushes."],
+    ["One day, her art teacher told the class about a contest.", "“Make a tiny horse,” said Mr. Reed.", "“The best one will win a prize.”"],
+    ["Maya rushed home after school.", "She found a small gray horse made of clay.", "She painted its body brown.", "She added a white spot on its nose and a long black tail."],
+    ["When she picked it up, her hand slipped.", "The horse fell to the floor, and one leg snapped off!"],
+    ["Maya was so unhappy.", "She wanted to quit.", "Then she looked at the broken leg again."],
+    ["“I can fix this,” she said.", "She used a drop of glue to put the leg back on.", "Then she repainted the crack with brown paint.", "Now no one could see it."],
+    ["On the day of the contest, Mr. Reed held up each horse.", "When he got to Maya’s horse, he smiled.", "“Look at the white spot on its nose,” he said.", "“This horse looks real!”"],
+    ["Maya won second place.", "She felt proud, because she did not give up."]
+  ],
+  "questions": [
+    {
+      "type": "detail",
+      "prompt": "What did Maya paint on the horse’s nose?",
+      "choices": ["A black star", "A white spot", "A brown stripe"],
+      "answerIndex": 1,
+      "supportSentence": "She added a white spot on its nose and a long black tail."
+    },
+    {
+      "type": "sequence",
+      "prompt": "What happened right after Maya’s hand slipped?",
+      "choices": ["The horse fell, and a leg snapped off.", "She painted the body brown.", "She won second place."],
+      "answerIndex": 0,
+      "supportSentence": "The horse fell to the floor, and one leg snapped off!"
+    },
+    {
+      "type": "character",
+      "prompt": "How did Maya feel when the leg broke?",
+      "choices": ["Proud", "Excited", "Unhappy"],
+      "answerIndex": 2,
+      "supportSentence": "Maya was so unhappy."
+    },
+    {
+      "type": "main-idea-lesson",
+      "prompt": "Why did Maya feel proud at the end?",
+      "choices": ["She won first place.", "She did not give up.", "Mr. Reed fixed her horse."],
+      "answerIndex": 1,
+      "supportSentence": "She felt proud, because she did not give up."
+    }
+  ]
+}
